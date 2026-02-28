@@ -11,6 +11,7 @@ import type {
   ScoringReminder,
   EndStats,
   GameState,
+  GameMode,
   TurnOwner,
   TurnPhase,
   AIState,
@@ -30,6 +31,7 @@ function createScreenShake(): ScreenShake {
 
 export const state = {
   gameState: 'PRELOAD' as GameState,
+  gameMode: 'VS_AI' as GameMode,
   prevTime: 0,
   timeScale: 1.0,
   slowMoTimer: 0,
@@ -202,4 +204,9 @@ export function getCueBall(): Ball {
     throw new Error('Cue ball not found');
   }
   return cue;
+}
+
+export function isHumanTurn(): boolean {
+  if (state.gameMode === 'VS_LOCAL') return true;
+  return state.currentTurn === 'PLAYER';
 }

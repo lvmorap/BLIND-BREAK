@@ -66,7 +66,7 @@ export function resolveTurn(): void {
     }
   }
 
-  if (state.currentTurn === 'AI') {
+  if (state.currentTurn === 'AI' && state.gameMode === 'VS_AI') {
     aiTakeTurn();
   }
 }

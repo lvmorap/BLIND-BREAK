@@ -1,6 +1,6 @@
 import { C, FELT_L, FELT_W, FELT_CX, FELT_CY, POCKETS } from '../core/constants.ts';
 import { state, getCueBall } from '../core/state.ts';
-import { fireShot, fireRecon } from '../core/physics.ts';
+import { fireShot, fireRecon, getVisibility } from '../core/physics.ts';
 import { ctx } from '../rendering/canvas.ts';
 
 export function aiTakeTurn(): void {
@@ -28,6 +28,7 @@ export function aiThink(): void {
   for (let i = 1; i < state.balls.length; i++) {
     const b = state.balls[i];
     if (!b || !b.alive) continue;
+    if (getVisibility(b.x, b.y) < 0.1) continue;
     {
       for (const pk of POCKETS) {
         const bpDx = pk.x - b.x;
@@ -46,6 +47,7 @@ export function aiThink(): void {
         for (let j = 1; j < state.balls.length; j++) {
           const ob = state.balls[j];
           if (j === i || !ob || !ob.alive) continue;
+          if (getVisibility(ob.x, ob.y) < 0.1) continue;
           const toDx = ob.x - cue.x;
           const toDy = ob.y - cue.y;
           const proj = toDx * Math.cos(aimAngle) + toDy * Math.sin(aimAngle);
@@ -96,7 +98,8 @@ export function aiThink(): void {
 }
 
 export function drawAIThinking(): void {
-  if (state.currentTurn !== 'AI' || state.aiState !== 'THINKING') return;
+  if (state.gameMode !== 'VS_AI' || state.currentTurn !== 'AI' || state.aiState !== 'THINKING')
+    return;
 
   state.aiScanAnim += 0.05;
   const pulse = 0.5 + 0.5 * Math.sin(state.aiScanAnim * 3);
@@ -107,46 +110,22 @@ export function drawAIThinking(): void {
   ctx.textAlign = 'center';
   ctx.shadowColor = C.AI_COLOR;
   ctx.shadowBlur = 10;
-  ctx.fillText('AI THINKING...', C.W / 2, 30);
+  ctx.fillText('AI THINKING...', C.W / 2, 58);
   ctx.shadowBlur = 0;
 
   const eyeX = C.W / 2;
-  const eyeY = 48;
+  const eyeY = 76;
   ctx.strokeStyle = `rgba(255,68,102,${pulse})`;
   ctx.lineWidth = 2;
   ctx.beginPath();
   ctx.ellipse(eyeX, eyeY, 15, 8, 0, 0, Math.PI * 2);
   ctx.stroke();
 
-  let scanTargetX = eyeX + Math.cos(state.aiScanAnim) * 6;
-  let bestBallForScan: { x: number; y: number } | null = null;
-  for (let i = 1; i < state.balls.length; i++) {
-    const ball = state.balls[i];
-    if (!ball || !ball.alive) continue;
-    bestBallForScan = ball;
-    break;
-  }
-  if (bestBallForScan) {
-    const dirX = bestBallForScan.x - eyeX;
-    const dirY = bestBallForScan.y - eyeY;
-    const dirLen = Math.sqrt(dirX * dirX + dirY * dirY);
-    scanTargetX = eyeX + (dirX / dirLen) * 6;
-  }
+  const scanTargetX = eyeX + Math.cos(state.aiScanAnim) * 6;
   ctx.fillStyle = C.AI_COLOR;
   ctx.beginPath();
   ctx.arc(scanTargetX, eyeY, 3, 0, Math.PI * 2);
   ctx.fill();
-
-  if (bestBallForScan) {
-    ctx.strokeStyle = 'rgba(255,68,102,0.4)';
-    ctx.setLineDash([6, 4]);
-    ctx.lineWidth = 1;
-    ctx.beginPath();
-    ctx.moveTo(eyeX, eyeY + 8);
-    ctx.lineTo(bestBallForScan.x, bestBallForScan.y);
-    ctx.stroke();
-    ctx.setLineDash([]);
-  }
 
   ctx.restore();
 }
