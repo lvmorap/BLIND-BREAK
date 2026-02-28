@@ -104,7 +104,7 @@ export function drawMenu(t: number): void {
   ctx.fillStyle = '#8899aa';
   ctx.font = '18px Rajdhani';
   ctx.textAlign = 'center';
-  ctx.fillText('⚛ Alien Billiards in the Cosmos ⚛', C.W / 2, 188);
+  ctx.fillText('Alien Billiards in the Cosmos', C.W / 2, 188);
 
   // Decorative line with glow
   ctx.save();
