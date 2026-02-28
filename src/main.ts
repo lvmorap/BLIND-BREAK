@@ -1,286 +1,149 @@
-import { C } from './core/constants.ts';
-import { state, resetBalls, isHumanTurn } from './core/state.ts';
-import {
-  updatePhysics,
-  allBallsStopped,
-  updateSquash,
-  updateShake,
-  fireShot,
-} from './core/physics.ts';
-import { updateParticles, updatePopups, spawnDust } from './rendering/effects.ts';
-import { prerenderFelt, prerenderWood } from './rendering/textures.ts';
-import { ctx, lightCanvas, lctx } from './rendering/canvas.ts';
-import { drawScene } from './rendering/scene.ts';
-import {
-  drawMenu,
-  drawCountdown,
-  drawEndScreen,
-  drawTutorial,
-  drawPauseMenu,
-} from './rendering/screens.ts';
-import { setupInput } from './input/input.ts';
-import { resolveTurn } from './core/turns.ts';
-import { aiThink } from './ai/ai.ts';
+import type { IGame, GameInfo } from './games/IGame.ts';
+import { GameManager } from './core/GameManager.ts';
 
-function update(dt: number): void {
-  if (state.paused) return;
+// Placeholder game for registry entries until real games are implemented
+class PlaceholderGame implements IGame {
+  private finished: boolean = false;
+  private timer: number = 0;
+  private winner: 1 | 2 | null = null;
+  private gameName: string;
 
-  const effectiveDt = dt * state.timeScale;
+  constructor(name: string) {
+    this.gameName = name;
+  }
 
-  if (state.slowMoTimer > 0) {
-    state.slowMoTimer -= dt * 1000;
-    if (state.slowMoTimer <= 0) {
-      state.timeScale = 1.0;
+  init(_canvas: HTMLCanvasElement, _ctx: CanvasRenderingContext2D): void {
+    this.finished = false;
+    this.timer = 0;
+    this.winner = null;
+  }
+
+  update(dt: number): void {
+    this.timer += dt;
+    if (this.timer >= 5) {
+      this.finished = true;
+      this.winner = Math.random() < 0.5 ? 1 : 2;
     }
   }
 
-  state.dashOffset += dt * 40;
+  render(ctx: CanvasRenderingContext2D): void {
+    const w = ctx.canvas.width;
+    const h = ctx.canvas.height;
+    ctx.fillStyle = '#0a0a12';
+    ctx.fillRect(0, 0, w, h);
 
-  state.dustTimer += dt * 1000;
-  if (state.dustTimer > C.DUST_INTERVAL) {
-    state.dustTimer -= C.DUST_INTERVAL;
-    for (let i = 0; i < 5; i++) spawnDust();
+    ctx.textAlign = 'center';
+    ctx.font = '700 32px Orbitron, sans-serif';
+    ctx.fillStyle = '#ffffff';
+    ctx.fillText(this.gameName, w / 2, h / 2 - 20);
+
+    ctx.font = '400 18px Rajdhani, sans-serif';
+    ctx.fillStyle = '#888888';
+    ctx.fillText('Coming Soon...', w / 2, h / 2 + 20);
+
+    const remaining = Math.max(0, 5 - this.timer);
+    ctx.font = '700 24px Orbitron, sans-serif';
+    ctx.fillStyle = '#e0d5c0';
+    ctx.fillText(Math.ceil(remaining).toString(), w / 2, h / 2 + 70);
   }
 
-  updateParticles(effectiveDt);
-  updatePopups(effectiveDt);
-  updateShake(dt);
-
-  if (state.gameState === 'COUNTDOWN') {
-    state.countdownTimer += dt * 1000;
-    const step = Math.floor(state.countdownTimer / C.COUNTDOWN_STEP);
-    state.countdownVal = 3 - step;
-    if (step >= 4) {
-      state.gameState = 'PLAYING';
-      state.turnPhase = 'AIM';
-      state.turnTimer = 0;
-    }
-    return;
+  destroy(): void {
+    /* no-op */
   }
 
-  if (state.gameState !== 'PLAYING') return;
-
-  // Turn timer
-  if (state.turnPhase === 'AIM') {
-    state.turnTimer += dt * 1000;
-    if (state.turnTimer >= C.TURN_TIMER) {
-      // Time's up - auto-fire a random weak shot or skip turn
-      state.turnTimer = 0;
-      const cue = state.balls[0];
-      if (cue && cue.alive && isHumanTurn()) {
-        const angle = Math.random() * Math.PI * 2;
-        fireShot(angle, 0.15);
-      }
-    }
+  getWinner(): 1 | 2 | null {
+    return this.winner;
   }
 
-  if (state.dragging && isHumanTurn()) {
-    const cue = state.balls[0];
-    if (cue && cue.alive) {
-      const dx = state.mouseX - cue.x;
-      const dy = state.mouseY - cue.y;
-      const dragDist = Math.sqrt(dx * dx + dy * dy);
-      state.power = Math.min(1, dragDist / C.MAX_DRAG_DIST);
-    }
-  }
-
-  if (state.turnPhase === 'ROLLING') {
-    updatePhysics(effectiveDt);
-    if (allBallsStopped()) {
-      state.settleTimer += dt * 1000;
-      if (state.settleTimer >= 500) {
-        state.settleTimer = 0;
-        resolveTurn();
-        state.turnTimer = 0;
-      }
-    } else {
-      state.settleTimer = 0;
-    }
-  }
-
-  if (state.gameMode === 'VS_AI' && state.currentTurn === 'AI' && state.aiState === 'THINKING') {
-    state.aiThinkTimer -= dt * 1000;
-    if (state.aiThinkTimer <= 0) {
-      aiThink();
-    }
-  }
-
-  for (const b of state.balls) {
-    if (b.alive) updateSquash(b, dt);
-  }
-
-  if (state.roundTransMsg && state.roundTransMsg.timer > 0) {
-    state.roundTransMsg.timer -= dt * 1000;
-  }
-
-  if (state.scoringReminder && state.scoringReminder.timer > 0) {
-    state.scoringReminder.timer -= dt * 1000;
-    if (state.scoringReminder.timer <= 0) state.scoringReminder = null;
-  }
-  if (state.scoringReminder && state.turnPhase === 'ROLLING') state.scoringReminder = null;
-
-  if (state.firstShotCoach && state.dragging) {
-    state.firstShotCoach = false;
-  }
-
-  state.parallaxX += (state.parallaxTargetX - state.parallaxX) * 0.05;
-  state.parallaxY += (state.parallaxTargetY - state.parallaxY) * 0.05;
-
-  state.breathTimer += dt;
-
-  const now = performance.now();
-  state.lightZones = state.lightZones.filter((z) => now - z.createdAt < C.TRAIL_DURATION);
-
-  if (state.chromaticTimer > 0) state.chromaticTimer--;
-
-  for (let i = state.numberBouncePopups.length - 1; i >= 0; i--) {
-    const nb = state.numberBouncePopups[i];
-    if (!nb) continue;
-    nb.y += nb.vy;
-    nb.vy += 0.12;
-    nb.timer--;
-    nb.alpha = Math.max(0, nb.timer / 60);
-    nb.scale *= 0.985;
-    if (nb.timer <= 0) state.numberBouncePopups.splice(i, 1);
-  }
-
-  if (state.scratchFlashTimer > 0) state.scratchFlashTimer--;
-
-  // Update wall ripples
-  for (let i = state.wallRipples.length - 1; i >= 0; i--) {
-    const r = state.wallRipples[i];
-    if (!r) continue;
-    r.time += dt * 1000;
-    if (r.time >= r.maxTime) state.wallRipples.splice(i, 1);
-  }
-
-  // Update laser beam
-  if (state.laserBeam && state.laserBeam.timer > 0) {
-    state.laserBeam.timer -= dt * 1000;
-    if (state.laserBeam.timer <= 0) {
-      state.laserBeam = null;
-    }
-  }
-
-  // Spawn comets occasionally
-  if (Math.random() < 0.002 * dt * 60 && state.comets.length < 3) {
-    const side = Math.floor(Math.random() * 4);
-    let cx: number, cy: number, cvx: number, cvy: number;
-    if (side === 0) {
-      cx = -10;
-      cy = Math.random() * C.H;
-      cvx = 1 + Math.random() * 2;
-      cvy = (Math.random() - 0.5) * 1.5;
-    } else if (side === 1) {
-      cx = C.W + 10;
-      cy = Math.random() * C.H;
-      cvx = -(1 + Math.random() * 2);
-      cvy = (Math.random() - 0.5) * 1.5;
-    } else if (side === 2) {
-      cx = Math.random() * C.W;
-      cy = -10;
-      cvx = (Math.random() - 0.5) * 1.5;
-      cvy = 1 + Math.random() * 2;
-    } else {
-      cx = Math.random() * C.W;
-      cy = C.H + 10;
-      cvx = (Math.random() - 0.5) * 1.5;
-      cvy = -(1 + Math.random() * 2);
-    }
-    state.comets.push({
-      x: cx,
-      y: cy,
-      vx: cvx,
-      vy: cvy,
-      size: 1 + Math.random() * 1.5,
-      alpha: 0.4 + Math.random() * 0.4,
-      tailLen: 20 + Math.random() * 40,
-    });
-  }
-  // Update comets
-  for (let i = state.comets.length - 1; i >= 0; i--) {
-    const cm = state.comets[i];
-    if (!cm) continue;
-    cm.x += cm.vx * dt * 60;
-    cm.y += cm.vy * dt * 60;
-    if (cm.x < -60 || cm.x > C.W + 60 || cm.y < -60 || cm.y > C.H + 60) {
-      state.comets.splice(i, 1);
-    }
-  }
-
-  // Update supernova
-  if (state.supernovaActive && state.supernovaTimer > 0) {
-    state.supernovaTimer -= dt * 1000;
-    if (state.supernovaTimer <= 0) {
-      state.supernovaActive = false;
-    }
+  isFinished(): boolean {
+    return this.finished;
   }
 }
 
-function draw(t: number): void {
-  ctx.clearRect(0, 0, C.W, C.H);
+const gameRegistry: GameInfo[] = [
+  {
+    id: 'neon-pong',
+    name: 'NEON PONG',
+    subtitle: 'Classic reimagined',
+    icon: '🏓',
+    color: '#00e5ff',
+    factory: (): IGame => new PlaceholderGame('NEON PONG'),
+  },
+  {
+    id: 'turbo-volleyball',
+    name: 'TURBO VOLLEYBALL',
+    subtitle: 'Spike to win',
+    icon: '🏐',
+    color: '#ff4466',
+    factory: (): IGame => new PlaceholderGame('TURBO VOLLEYBALL'),
+  },
+  {
+    id: 'goal-rush',
+    name: 'GOAL RUSH',
+    subtitle: 'Score the goal',
+    icon: '⚽',
+    color: '#44ff66',
+    factory: (): IGame => new PlaceholderGame('GOAL RUSH'),
+  },
+  {
+    id: 'basket-brawl',
+    name: 'BASKET BRAWL',
+    subtitle: 'Dunk or be dunked',
+    icon: '🏀',
+    color: '#ff8844',
+    factory: (): IGame => new PlaceholderGame('BASKET BRAWL'),
+  },
+  {
+    id: 'disc-dash',
+    name: 'DISC DASH',
+    subtitle: 'Air hockey evolved',
+    icon: '🥏',
+    color: '#aa66ff',
+    factory: (): IGame => new PlaceholderGame('DISC DASH'),
+  },
+  {
+    id: 'sprint-clash',
+    name: 'SPRINT CLASH',
+    subtitle: 'Race to the finish',
+    icon: '🏃',
+    color: '#ffdd44',
+    factory: (): IGame => new PlaceholderGame('SPRINT CLASH'),
+  },
+];
 
-  ctx.save();
-  ctx.translate(state.screenShake.ox, state.screenShake.oy);
+function main(): void {
+  const canvas = document.getElementById('gameCanvas') as HTMLCanvasElement | null;
+  if (!canvas) return;
+  const maybeCtx = canvas.getContext('2d');
+  if (!maybeCtx) return;
+  const ctx: CanvasRenderingContext2D = maybeCtx;
 
-  ctx.fillStyle = '#020206';
-  ctx.fillRect(-20, -20, C.W + 40, C.H + 40);
+  canvas.width = 1280;
+  canvas.height = 720;
 
-  if (state.gameState === 'PRELOAD' || state.gameState === 'MENU') {
-    drawMenu(t);
-  } else if (state.gameState === 'TUTORIAL') {
-    drawTutorial(t);
-  } else if (state.gameState === 'COUNTDOWN') {
-    drawCountdown(t);
-  } else if (state.gameState === 'PLAYING') {
-    drawScene(t);
-    if (state.chromaticTimer > 0) {
-      const offset = state.chromaticTimer * 1.5;
-      lctx.clearRect(0, 0, C.W, C.H);
-      lctx.drawImage(document.getElementById('gameCanvas') as HTMLCanvasElement, 0, 0);
-      ctx.save();
-      ctx.globalCompositeOperation = 'lighter';
-      ctx.globalAlpha = 0.08;
-      ctx.drawImage(lightCanvas, offset, 0);
-      ctx.drawImage(lightCanvas, -offset, 0);
-      ctx.restore();
-    }
-    if (state.paused) drawPauseMenu();
-  } else if (state.gameState === 'ENDSCREEN') {
-    drawEndScreen(t);
+  const manager = new GameManager(canvas, ctx, gameRegistry);
+  let prevTime = 0;
+
+  const w = canvas.width;
+  const h = canvas.height;
+
+  function gameLoop(timestamp: number): void {
+    const dt = Math.min((timestamp - prevTime) / 1000, 0.05);
+    prevTime = timestamp;
+
+    ctx.clearRect(0, 0, w, h);
+    manager.update(dt);
+    manager.render(ctx);
+
+    requestAnimationFrame(gameLoop);
   }
 
-  ctx.restore();
-
-  for (const p of state.scorePopups) {
-    if (p.text.includes('SCRATCH') && p.life > p.maxLife - 200) {
-      ctx.fillStyle = `rgba(255,0,0,${0.15 * (p.life / p.maxLife)})`;
-      ctx.fillRect(0, 0, C.W, C.H);
-    }
-  }
-}
-
-function gameLoop(timestamp: number): void {
-  const dt = Math.min((timestamp - state.prevTime) / 1000, 0.05);
-  state.prevTime = timestamp;
-  update(dt);
-  draw(timestamp);
-  requestAnimationFrame(gameLoop);
-}
-
-function init(): void {
-  prerenderFelt();
-  prerenderWood();
-  resetBalls();
-  state.gameState = 'MENU';
-  setupInput();
-
-  void document.fonts.ready.then(() => {
-    requestAnimationFrame((t: number) => {
-      state.prevTime = t;
+  void document.fonts.ready.then((): void => {
+    requestAnimationFrame((t: number): void => {
+      prevTime = t;
       gameLoop(t);
     });
   });
 }
 
-init();
+main();
