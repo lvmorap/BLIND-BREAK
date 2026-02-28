@@ -1,113 +1,60 @@
-import type { IGame, GameInfo } from './games/IGame.ts';
+import type { GameInfo } from './games/IGame.ts';
 import { GameManager } from './core/GameManager.ts';
-
-// Placeholder game for registry entries until real games are implemented
-class PlaceholderGame implements IGame {
-  private finished: boolean = false;
-  private timer: number = 0;
-  private winner: 1 | 2 | null = null;
-  private gameName: string;
-
-  constructor(name: string) {
-    this.gameName = name;
-  }
-
-  init(_canvas: HTMLCanvasElement, _ctx: CanvasRenderingContext2D): void {
-    this.finished = false;
-    this.timer = 0;
-    this.winner = null;
-  }
-
-  update(dt: number): void {
-    this.timer += dt;
-    if (this.timer >= 5) {
-      this.finished = true;
-      this.winner = Math.random() < 0.5 ? 1 : 2;
-    }
-  }
-
-  render(ctx: CanvasRenderingContext2D): void {
-    const w = ctx.canvas.width;
-    const h = ctx.canvas.height;
-    ctx.fillStyle = '#0a0a12';
-    ctx.fillRect(0, 0, w, h);
-
-    ctx.textAlign = 'center';
-    ctx.font = '700 32px Orbitron, sans-serif';
-    ctx.fillStyle = '#ffffff';
-    ctx.fillText(this.gameName, w / 2, h / 2 - 20);
-
-    ctx.font = '400 18px Rajdhani, sans-serif';
-    ctx.fillStyle = '#888888';
-    ctx.fillText('Coming Soon...', w / 2, h / 2 + 20);
-
-    const remaining = Math.max(0, 5 - this.timer);
-    ctx.font = '700 24px Orbitron, sans-serif';
-    ctx.fillStyle = '#e0d5c0';
-    ctx.fillText(Math.ceil(remaining).toString(), w / 2, h / 2 + 70);
-  }
-
-  destroy(): void {
-    /* no-op */
-  }
-
-  getWinner(): 1 | 2 | null {
-    return this.winner;
-  }
-
-  isFinished(): boolean {
-    return this.finished;
-  }
-}
+import { BlindBreakGame } from './games/BlindBreak/BlindBreakGame.ts';
+import { PingPongGame } from './games/PingPong/PingPongGame.ts';
+import { SoccerGame } from './games/Soccer/SoccerGame.ts';
+import { SumoGame } from './games/Sumo/SumoGame.ts';
+import { FormulaGame } from './games/Formula/FormulaGame.ts';
+import { VolleyballGame } from './games/Volleyball/VolleyballGame.ts';
 
 const gameRegistry: GameInfo[] = [
   {
-    id: 'neon-pong',
-    name: 'NEON PONG',
-    subtitle: 'Classic reimagined',
+    id: 'blind-break',
+    name: 'BLIND BREAK',
+    subtitle: 'Noir billiards in the dark',
+    icon: '🎱',
+    color: '#ff3366',
+    factory: () => new BlindBreakGame(),
+  },
+  {
+    id: 'ping-pong',
+    name: 'ENDLESS RALLY',
+    subtitle: 'Speed builds with every hit',
     icon: '🏓',
-    color: '#00e5ff',
-    factory: (): IGame => new PlaceholderGame('NEON PONG'),
+    color: '#ff8800',
+    factory: () => new PingPongGame(),
   },
   {
-    id: 'turbo-volleyball',
-    name: 'TURBO VOLLEYBALL',
-    subtitle: 'Spike to win',
-    icon: '🏐',
-    color: '#ff4466',
-    factory: (): IGame => new PlaceholderGame('TURBO VOLLEYBALL'),
-  },
-  {
-    id: 'goal-rush',
-    name: 'GOAL RUSH',
-    subtitle: 'Score the goal',
+    id: 'soccer',
+    name: 'MOVING GOALS',
+    subtitle: 'The goalposts never stop',
     icon: '⚽',
     color: '#44ff66',
-    factory: (): IGame => new PlaceholderGame('GOAL RUSH'),
+    factory: () => new SoccerGame(),
   },
   {
-    id: 'basket-brawl',
-    name: 'BASKET BRAWL',
-    subtitle: 'Dunk or be dunked',
-    icon: '🏀',
-    color: '#ff8844',
-    factory: (): IGame => new PlaceholderGame('BASKET BRAWL'),
+    id: 'sumo',
+    name: 'SHRINKING RING',
+    subtitle: 'The arena closes in',
+    icon: '🥋',
+    color: '#c4a44a',
+    factory: () => new SumoGame(),
   },
   {
-    id: 'disc-dash',
-    name: 'DISC DASH',
-    subtitle: 'Air hockey evolved',
-    icon: '🥏',
-    color: '#aa66ff',
-    factory: (): IGame => new PlaceholderGame('DISC DASH'),
+    id: 'formula',
+    name: 'TRON TRAIL RACE',
+    subtitle: 'Leave light, block rivals',
+    icon: '🏎️',
+    color: '#aa44ff',
+    factory: () => new FormulaGame(),
   },
   {
-    id: 'sprint-clash',
-    name: 'SPRINT CLASH',
-    subtitle: 'Race to the finish',
-    icon: '🏃',
-    color: '#ffdd44',
-    factory: (): IGame => new PlaceholderGame('SPRINT CLASH'),
+    id: 'volleyball',
+    name: 'GRAVITY WALL',
+    subtitle: 'Gravity shifts every 5 seconds',
+    icon: '🏐',
+    color: '#ffffaa',
+    factory: () => new VolleyballGame(),
   },
 ];
 

@@ -222,7 +222,7 @@ export class VolleyballGame implements IGame {
     // Screen flash on gravity change
     if (this.flashTimer > 0) {
       ctx.save();
-      ctx.globalAlpha = this.flashTimer / 0.15 * 0.25;
+      ctx.globalAlpha = (this.flashTimer / 0.15) * 0.25;
       ctx.fillStyle = '#ffffff';
       ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
       ctx.restore();
@@ -362,13 +362,10 @@ export class VolleyballGame implements IGame {
     // Net constraint — players cannot cross
     if (isVerticalGravity) {
       // Net extends from floor. For DOWN: from bottom up. For UP: from top down.
-      const netTop =
-        this.gravity === 'DOWN' ? COURT_Y + COURT_H - netH : COURT_Y;
-      const netBottom =
-        this.gravity === 'DOWN' ? COURT_Y + COURT_H : COURT_Y + netH;
+      const netTop = this.gravity === 'DOWN' ? COURT_Y + COURT_H - netH : COURT_Y;
+      const netBottom = this.gravity === 'DOWN' ? COURT_Y + COURT_H : COURT_Y + netH;
 
-      const playerInNetVertical =
-        player.y + PLAYER_H > netTop && player.y < netBottom;
+      const playerInNetVertical = player.y + PLAYER_H > netTop && player.y < netBottom;
 
       if (playerInNetVertical) {
         if (player.side === 1 && player.x + PLAYER_W > netLeft) {
@@ -381,17 +378,10 @@ export class VolleyballGame implements IGame {
       }
     } else {
       // Lateral gravity: net extends from the gravity-floor wall
-      const netStart =
-        this.gravity === 'LEFT'
-          ? COURT_X
-          : COURT_X + COURT_W - netH;
-      const netEnd =
-        this.gravity === 'LEFT'
-          ? COURT_X + netH
-          : COURT_X + COURT_W;
+      const netStart = this.gravity === 'LEFT' ? COURT_X : COURT_X + COURT_W - netH;
+      const netEnd = this.gravity === 'LEFT' ? COURT_X + netH : COURT_X + COURT_W;
 
-      const playerInNetHorizontal =
-        player.x + PLAYER_W > netStart && player.x < netEnd;
+      const playerInNetHorizontal = player.x + PLAYER_W > netStart && player.x < netEnd;
 
       if (playerInNetHorizontal) {
         if (player.side === 1 && player.y + PLAYER_H > COURT_Y + COURT_H / 2 - NET_W / 2) {
@@ -538,10 +528,8 @@ export class VolleyballGame implements IGame {
 
     if (isVerticalGravity) {
       const netH = COURT_H * NET_HEIGHT_RATIO;
-      const netTop =
-        this.gravity === 'DOWN' ? COURT_Y + COURT_H - netH : COURT_Y;
-      const netBottom =
-        this.gravity === 'DOWN' ? COURT_Y + COURT_H : COURT_Y + netH;
+      const netTop = this.gravity === 'DOWN' ? COURT_Y + COURT_H - netH : COURT_Y;
+      const netBottom = this.gravity === 'DOWN' ? COURT_Y + COURT_H : COURT_Y + netH;
 
       // Ball vs net rectangle
       if (
@@ -562,10 +550,8 @@ export class VolleyballGame implements IGame {
       // Lateral gravity: net is horizontal across the middle of the court
       const netMidY = COURT_Y + COURT_H / 2;
       const netH = COURT_H * NET_HEIGHT_RATIO;
-      const netStart =
-        this.gravity === 'LEFT' ? COURT_X : COURT_X + COURT_W - netH;
-      const netEnd =
-        this.gravity === 'LEFT' ? COURT_X + netH : COURT_X + COURT_W;
+      const netStart = this.gravity === 'LEFT' ? COURT_X : COURT_X + COURT_W - netH;
+      const netEnd = this.gravity === 'LEFT' ? COURT_X + netH : COURT_X + COURT_W;
 
       if (
         this.ball.x + r > netStart &&
@@ -718,8 +704,7 @@ export class VolleyballGame implements IGame {
 
     if (isVerticalGravity) {
       const netH = COURT_H * NET_HEIGHT_RATIO;
-      const netTop =
-        this.gravity === 'DOWN' ? COURT_Y + COURT_H - netH : COURT_Y;
+      const netTop = this.gravity === 'DOWN' ? COURT_Y + COURT_H - netH : COURT_Y;
 
       // Glow
       ctx.shadowColor = COLOR_NET;
@@ -736,8 +721,7 @@ export class VolleyballGame implements IGame {
       // Horizontal net at center of court (top-bottom split)
       const netMidY = COURT_Y + COURT_H / 2 - NET_W / 2;
       const netLength = COURT_H * NET_HEIGHT_RATIO;
-      const netStart =
-        this.gravity === 'LEFT' ? COURT_X : COURT_X + COURT_W - netLength;
+      const netStart = this.gravity === 'LEFT' ? COURT_X : COURT_X + COURT_W - netLength;
 
       ctx.shadowColor = COLOR_NET;
       ctx.shadowBlur = 8;
@@ -923,11 +907,7 @@ export class VolleyballGame implements IGame {
 
     ctx.font = '400 24px Orbitron, monospace';
     ctx.fillStyle = '#aaaaaa';
-    ctx.fillText(
-      `${this.scoreP1} - ${this.scoreP2}`,
-      CANVAS_W / 2,
-      CANVAS_H / 2 + 30,
-    );
+    ctx.fillText(`${this.scoreP1} - ${this.scoreP2}`, CANVAS_W / 2, CANVAS_H / 2 + 30);
 
     ctx.restore();
   }

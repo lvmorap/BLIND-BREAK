@@ -111,11 +111,7 @@ export class BlindBreakGame implements IGame {
       }
     }
 
-    if (
-      state.gameMode === 'VS_AI' &&
-      state.currentTurn === 'AI' &&
-      state.aiState === 'THINKING'
-    ) {
+    if (state.gameMode === 'VS_AI' && state.currentTurn === 'AI' && state.aiState === 'THINKING') {
       state.aiThinkTimer -= dt * 1000;
       if (state.aiThinkTimer <= 0) {
         aiThink();

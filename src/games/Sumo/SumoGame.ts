@@ -449,8 +449,6 @@ export class SumoGame implements IGame {
         Math.cos(Date.now() * 0.07) * amp,
       );
     }
-
-
   }
 
   private endGame(): void {

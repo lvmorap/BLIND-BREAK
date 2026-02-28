@@ -113,10 +113,7 @@ function pointInPolygon(px: number, py: number, poly: Vec2[]): boolean {
     const pi = poly[i];
     const pj = poly[j];
     if (!pi || !pj) continue;
-    if (
-      pi.y > py !== pj.y > py &&
-      px < ((pj.x - pi.x) * (py - pi.y)) / (pj.y - pi.y) + pi.x
-    ) {
+    if (pi.y > py !== pj.y > py && px < ((pj.x - pi.x) * (py - pi.y)) / (pj.y - pi.y) + pi.x) {
       inside = !inside;
     }
   }
