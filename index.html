@@ -57,6 +57,11 @@ const C = {
   DUST_INTERVAL: 2000,
   NOISE_DOTS: 2000,
   SQUASH_DURATION: 180,
+  RACK_SPACING: 2.2, // Ball diameter (2r=22) + 2px gap = ~24.2px ≈ 2.2 * BALL_R
+  SCRATCH_RESPAWN_MS: 350, // sinkTimer(300) + visual buffer
+  RECON_SPREAD_DEG: 25, // ±25° fork spread per spec Section 7
+  AI_GHOST_VARIANCE_DEG: 12, // ±12° ghost aim inaccuracy per spec Section 8
+  AI_PROBE_VARIANCE_DEG: 30, // ±30° random probe spread per spec Section 8
 };
 
 const TABLE_L = (C.W - C.TABLE_W) / 2;
@@ -176,7 +181,7 @@ function resetBalls() {
   // Rack 7 balls in triangle at 3/4 table
   const rackX = FELT_L + FELT_W * 0.72;
   const rackY = FELT_CY;
-  const spacing = C.BALL_R * 2.2;
+  const spacing = C.BALL_R * C.RACK_SPACING;
   const positions = [
     [0,0],
     [-1,-0.5],[-1,0.5],
@@ -663,7 +668,7 @@ function sinkBall(ball, pocket) {
       ball.vx = 0; ball.vy = 0;
       // Ensure not overlapping
       unstickBall(ball);
-    }, 350);
+    }, C.SCRATCH_RESPAWN_MS);
     return;
   }
 
@@ -1304,7 +1309,7 @@ function fireRecon(angle) {
   };
   // Delay actual light zone creation until animation finishes
   setTimeout(() => {
-    const spread = 25 * Math.PI / 180;
+    const spread = C.RECON_SPREAD_DEG * Math.PI / 180;
     const beamLength = 300;
     for (let i = -1; i <= 1; i++) {
       const a = angle + i * spread;
@@ -1330,7 +1335,7 @@ function drawReconBeams(t) {
   if (!reconBeamAnim) return;
   const elapsed = t - reconBeamAnim.startTime;
   const progress = Math.min(1, elapsed / reconBeamAnim.duration);
-  const spread = 25 * Math.PI / 180;
+  const spread = C.RECON_SPREAD_DEG * Math.PI / 180;
   const beamLength = 300;
 
   ctx.save();
@@ -1441,7 +1446,7 @@ function aiThink() {
       const age = currentRound - g.round;
       if (age > 2) continue;
       strategy = 'HUNT_GHOST';
-      const variance = (Math.random()-0.5) * 24 * Math.PI/180;
+      const variance = (Math.random()-0.5) * C.AI_GHOST_VARIANCE_DEG * 2 * Math.PI/180;
       const angle = Math.atan2(g.y - cue.y, g.x - cue.x) + variance;
       const power = 0.3 + Math.random()*0.3;
       fireShot(angle, power);
@@ -1457,7 +1462,7 @@ function aiThink() {
   }
 
   // PROBE: aim toward rack center
-  const variance = (Math.random()-0.5) * 60 * Math.PI/180;
+  const variance = (Math.random()-0.5) * C.AI_PROBE_VARIANCE_DEG * 2 * Math.PI/180;
   const rackX = FELT_L + FELT_W * 0.72;
   const angle = Math.atan2(FELT_CY - cue.y, rackX - cue.x) + variance;
   const power = 0.3 + Math.random()*0.4;
