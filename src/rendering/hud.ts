@@ -44,7 +44,7 @@ export function drawHUD(): void {
   ctx.fillStyle = '#888';
   ctx.font = 'bold 14px Orbitron';
   ctx.textAlign = 'center';
-  ctx.fillText(`ORBIT ${state.currentRound}/${C.ROUNDS}`, C.W / 2, 20);
+  ctx.fillText(`ORBIT ${state.currentRound}/${state.maxRounds}`, C.W / 2, 20);
 
   // Turn indicator — below round
   let turnText: string;

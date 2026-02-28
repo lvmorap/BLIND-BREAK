@@ -82,7 +82,9 @@ export class GameManager {
     this.p2Score = 0;
     this.roundRecords = [];
     this.currentRoundIndex = 0;
-    this.gameOrder = this.shuffleGames(this.registry);
+    const firstHalf = this.shuffleGames(this.registry);
+    const secondHalf = this.shuffleGames(this.registry);
+    this.gameOrder = [...firstHalf, ...secondHalf];
     this.beginRoundIntro();
   }
 
@@ -166,6 +168,9 @@ export class GameManager {
     const info = this.gameOrder[this.currentRoundIndex];
     if (!info) return;
     this.currentGame = info.factory();
+    if (this.mode === 'TOURNAMENT') {
+      this.currentGame.setDurationMultiplier?.(0.5);
+    }
     this.currentGame.init(this.canvas, this.ctx);
     audioManager.playWhistle();
   }

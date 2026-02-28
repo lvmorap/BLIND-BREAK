@@ -151,6 +151,8 @@ function randomDir(): Vec2 {
 
 export class SumoGame implements IGame {
   private input!: InputManager;
+  private durationMult = 1;
+  private effectiveShrinkDuration = ARENA_SHRINK_DURATION;
   private timer = GAME_DURATION;
   private finished = false;
   private winner: 1 | 2 | null = null;
@@ -171,11 +173,16 @@ export class SumoGame implements IGame {
   private collisionShakeOffset: Vec2 = v2(0, 0);
   private stars: Star[] = [];
 
+  setDurationMultiplier(mult: number): void {
+    this.durationMult = mult;
+  }
+
   init(_canvas: HTMLCanvasElement, _ctx: CanvasRenderingContext2D): void {
     this.input = new InputManager();
     this.input.init();
 
-    this.timer = GAME_DURATION;
+    this.timer = GAME_DURATION * this.durationMult;
+    this.effectiveShrinkDuration = ARENA_SHRINK_DURATION * this.durationMult;
     this.finished = false;
     this.winner = null;
     this.arenaRadius = ARENA_RADIUS_INITIAL;
@@ -246,8 +253,8 @@ export class SumoGame implements IGame {
     }
 
     // Arena shrink
-    const elapsed = GAME_DURATION - this.timer;
-    const t = Math.min(elapsed / ARENA_SHRINK_DURATION, 1);
+    const elapsed = GAME_DURATION * this.durationMult - this.timer;
+    const t = Math.min(elapsed / this.effectiveShrinkDuration, 1);
     this.arenaRadius = ARENA_RADIUS_INITIAL + (ARENA_RADIUS_FINAL - ARENA_RADIUS_INITIAL) * t;
 
     // Input

@@ -183,6 +183,9 @@ function makeDefaultCar(): Car {
 // ── FormulaGame ──────────────────────────────────────────────────────────────
 export class FormulaGame implements IGame {
   private input = new InputManager();
+  private durationMult = 1;
+  private effectiveMatchTime = MATCH_TIME;
+  private effectiveLaps = LAPS_TO_WIN;
   private outerTrack: Vec2[] = [];
   private innerTrack: Vec2[] = [];
   private centerLine: Vec2[] = [];
@@ -200,8 +203,14 @@ export class FormulaGame implements IGame {
   private startAngle = 0;
 
   // ── IGame lifecycle ──────────────────────────────────────────────────────
+  setDurationMultiplier(mult: number): void {
+    this.durationMult = mult;
+  }
+
   init(_canvas: HTMLCanvasElement, _ctx: CanvasRenderingContext2D): void {
     this.input.init();
+    this.effectiveMatchTime = MATCH_TIME * this.durationMult;
+    this.effectiveLaps = Math.ceil(LAPS_TO_WIN * this.durationMult);
     this.outerTrack = buildTrackBoundary(TRACK_HALF_WIDTH);
     this.innerTrack = buildTrackBoundary(-TRACK_HALF_WIDTH);
     this.centerLine = [];
@@ -253,7 +262,7 @@ export class FormulaGame implements IGame {
     }
 
     this.timer += dt;
-    if (this.timer >= MATCH_TIME) {
+    if (this.timer >= this.effectiveMatchTime) {
       this.endByTimeout();
       this.input.update();
       return;
@@ -542,7 +551,7 @@ export class FormulaGame implements IGame {
   private checkWinCondition(): void {
     for (let ci = 0; ci < 2; ci++) {
       const car = this.cars[ci];
-      if (car && car.lap >= LAPS_TO_WIN) {
+      if (car && car.lap >= this.effectiveLaps) {
         this.winner = (ci + 1) as 1 | 2;
         this.finished = true;
         return;
@@ -783,7 +792,7 @@ export class FormulaGame implements IGame {
 
   private renderHUD(ctx: CanvasRenderingContext2D): void {
     // Timer
-    const remaining = Math.max(0, MATCH_TIME - this.timer);
+    const remaining = Math.max(0, this.effectiveMatchTime - this.timer);
     const mins = Math.floor(remaining / 60);
     const secs = Math.floor(remaining % 60);
     const timeStr = `${mins}:${secs.toString().padStart(2, '0')}`;
@@ -806,7 +815,11 @@ export class FormulaGame implements IGame {
     ctx.textAlign = 'left';
     ctx.font = 'bold 16px monospace';
     ctx.fillStyle = color;
-    ctx.fillText(`${label}  LAP ${Math.min(car.lap + 1, LAPS_TO_WIN)}/${LAPS_TO_WIN}`, baseX, 30);
+    ctx.fillText(
+      `${label}  LAP ${Math.min(car.lap + 1, this.effectiveLaps)}/${this.effectiveLaps}`,
+      baseX,
+      30,
+    );
 
     // Turbo cooldown bar
     ctx.fillStyle = '#444444';

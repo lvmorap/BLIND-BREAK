@@ -5,6 +5,7 @@ export interface IGame {
   destroy(): void;
   getWinner(): 1 | 2 | null;
   isFinished(): boolean;
+  setDurationMultiplier?(mult: number): void;
 }
 
 export interface GameInfo {

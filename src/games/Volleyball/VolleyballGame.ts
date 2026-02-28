@@ -115,6 +115,7 @@ function normalize(v: Vec2): Vec2 {
 // ── VolleyballGame ─────────────────────────────────────────────────────────────
 export class VolleyballGame implements IGame {
   private input: InputManager = new InputManager();
+  private durationMult = 1;
 
   private p1!: Player;
   private p2!: Player;
@@ -138,6 +139,10 @@ export class VolleyballGame implements IGame {
 
   // ── IGame lifecycle ────────────────────────────────────────────────────────
 
+  setDurationMultiplier(mult: number): void {
+    this.durationMult = mult;
+  }
+
   init(_canvas: HTMLCanvasElement, _ctx: CanvasRenderingContext2D): void {
     this.input.init();
     this.gravity = 'DOWN';
@@ -149,7 +154,7 @@ export class VolleyballGame implements IGame {
     this.initCosmicParticles();
     this.scoreP1 = 0;
     this.scoreP2 = 0;
-    this.timer = GAME_DURATION;
+    this.timer = GAME_DURATION * this.durationMult;
     this.finished = false;
     this.freezeTimer = 0;
     this.resetPlayers();

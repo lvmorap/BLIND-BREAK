@@ -62,6 +62,7 @@ function clamp(v: number, min: number, max: number): number {
 // ── Game ───────────────────────────────────────────────────────────────────
 export class PingPongGame implements IGame {
   private input: InputManager = new InputManager();
+  private durationMult = 1;
 
   // Paddles (x,y = top-left corner)
   private p1: Paddle = { x: 0, y: 0, w: PADDLE_W, h: PADDLE_H };
@@ -87,8 +88,13 @@ export class PingPongGame implements IGame {
   private stars: Star[] = [];
 
   // ── IGame lifecycle ────────────────────────────────────────────────────
+  setDurationMultiplier(mult: number): void {
+    this.durationMult = mult;
+  }
+
   init(_canvas: HTMLCanvasElement, _ctx: CanvasRenderingContext2D): void {
     this.input.init();
+    this.timer = MATCH_DURATION * this.durationMult;
 
     this.stars = [];
     for (let i = 0; i < STAR_COUNT; i++) {
