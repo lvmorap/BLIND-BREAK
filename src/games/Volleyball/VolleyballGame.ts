@@ -32,15 +32,20 @@ const GRAVITY_WARNING_TIME = 1;
 
 const GAME_DURATION = 60;
 
-const COLOR_BG = '#0a0e1a';
-const COLOR_FLOOR = '#8B6914';
+const COLOR_BG = '#0a0a1f';
+const COLOR_FLOOR = '#0d1122';
 const COLOR_P1 = '#00e5ff';
 const COLOR_P2 = '#ff4466';
-const COLOR_BALL = '#ffffaa';
-const COLOR_NET = '#ffffff';
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 type GravityDir = 'DOWN' | 'UP' | 'LEFT' | 'RIGHT';
+
+const GRAVITY_COLORS: Record<GravityDir, string> = {
+  DOWN: '#4488ff',
+  UP: '#ff4444',
+  LEFT: '#44ff44',
+  RIGHT: '#ffff44',
+};
 
 interface Vec2 {
   x: number;
@@ -63,6 +68,16 @@ interface Ball {
   vy: number;
   trail: Vec2[];
   lastHitBy: 1 | 2 | 0;
+}
+
+interface CosmicParticle {
+  x: number;
+  y: number;
+  vx: number;
+  vy: number;
+  radius: number;
+  opacity: number;
+  color: string;
 }
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
@@ -116,6 +131,8 @@ export class VolleyballGame implements IGame {
   private gravityTimer = 0;
   private showArrow = false;
   private flashTimer = 0;
+  private gravityChangeArrowTimer = 0;
+  private cosmicParticles: CosmicParticle[] = [];
 
   private freezeTimer = 0;
 
@@ -128,6 +145,8 @@ export class VolleyballGame implements IGame {
     this.gravityTimer = 0;
     this.showArrow = false;
     this.flashTimer = 0;
+    this.gravityChangeArrowTimer = 0;
+    this.initCosmicParticles();
     this.scoreP1 = 0;
     this.scoreP2 = 0;
     this.timer = GAME_DURATION;
@@ -169,10 +188,13 @@ export class VolleyballGame implements IGame {
       this.gravityTimer = 0;
       this.showArrow = false;
       this.flashTimer = 0.15;
+      this.gravityChangeArrowTimer = 1.0;
       this.snapPlayersToFloor();
     }
 
     if (this.flashTimer > 0) this.flashTimer -= dt;
+    if (this.gravityChangeArrowTimer > 0) this.gravityChangeArrowTimer -= dt;
+    this.updateCosmicParticles(dt);
 
     // Input
     const p1In = this.input.getPlayer1();
@@ -201,6 +223,7 @@ export class VolleyballGame implements IGame {
     // Ball collisions
     this.collideBallWalls();
     this.collideBallNet();
+    this.collideBallPlayers();
     this.checkScoring();
 
     this.input.update();
@@ -211,7 +234,7 @@ export class VolleyballGame implements IGame {
     ctx.fillStyle = COLOR_BG;
     ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
 
-    this.drawBleachers(ctx);
+    this.drawCosmicParticles(ctx);
     this.drawCourt(ctx);
     this.drawActiveFloor(ctx);
     this.drawNet(ctx);
@@ -225,9 +248,14 @@ export class VolleyballGame implements IGame {
     if (this.flashTimer > 0) {
       ctx.save();
       ctx.globalAlpha = (this.flashTimer / 0.15) * 0.25;
-      ctx.fillStyle = '#ffffff';
+      ctx.fillStyle = GRAVITY_COLORS[this.gravity];
       ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
       ctx.restore();
+    }
+
+    // Large directional arrow fading out after gravity change
+    if (this.gravityChangeArrowTimer > 0) {
+      this.drawGravityChangeArrow(ctx);
     }
 
     if (this.finished) {
@@ -481,6 +509,30 @@ export class VolleyballGame implements IGame {
     this.ball.lastHitBy = player.side;
   }
 
+  private collideBallPlayers(): void {
+    for (const player of [this.p1, this.p2]) {
+      const px = player.x + PLAYER_W / 2;
+      const py = player.y + PLAYER_H / 2;
+      const collisionRadius = BALL_RADIUS + Math.max(PLAYER_W, PLAYER_H) / 2;
+      const d = dist({ x: this.ball.x, y: this.ball.y }, { x: px, y: py });
+      if (d < collisionRadius && d > 0) {
+        const normal = normalize({ x: this.ball.x - px, y: this.ball.y - py });
+        const dotProduct = this.ball.vx * normal.x + this.ball.vy * normal.y;
+        if (dotProduct < 0) {
+          this.ball.vx -= 2 * dotProduct * normal.x;
+          this.ball.vy -= 2 * dotProduct * normal.y;
+        }
+        // Player velocity contribution
+        this.ball.vx += player.vx * 0.3;
+        this.ball.vy += player.vy * 0.3;
+        // Separate ball from player
+        const overlap = collisionRadius - d;
+        this.ball.x += normal.x * overlap;
+        this.ball.y += normal.y * overlap;
+      }
+    }
+  }
+
   // ── Ball logic ─────────────────────────────────────────────────────────────
 
   private resetBall(): void {
@@ -626,31 +678,63 @@ export class VolleyballGame implements IGame {
 
   // ── Rendering ──────────────────────────────────────────────────────────────
 
-  private drawBleachers(ctx: CanvasRenderingContext2D): void {
-    ctx.fillStyle = '#12162a';
-    // Top bleachers
-    for (let i = 0; i < 5; i++) {
-      const y = 10 + i * 14;
-      ctx.fillRect(COURT_X - 20, y, COURT_W + 40, 10);
-    }
-    // Bottom bleachers
-    for (let i = 0; i < 3; i++) {
-      const y = CANVAS_H - 40 + i * 14;
-      ctx.fillRect(COURT_X - 20, y, COURT_W + 40, 10);
+  private initCosmicParticles(): void {
+    this.cosmicParticles = [];
+    for (let i = 0; i < 30; i++) {
+      this.cosmicParticles.push({
+        x: Math.random() * CANVAS_W,
+        y: Math.random() * CANVAS_H,
+        vx: (Math.random() - 0.5) * 15,
+        vy: (Math.random() - 0.5) * 15,
+        radius: 1 + Math.random() * 2,
+        opacity: 0.2 + Math.random() * 0.2,
+        color: Math.random() > 0.5 ? '#00ffff' : '#ffffff',
+      });
     }
   }
 
+  private updateCosmicParticles(dt: number): void {
+    for (const p of this.cosmicParticles) {
+      p.x += p.vx * dt;
+      p.y += p.vy * dt;
+      if (p.x < 0) p.x += CANVAS_W;
+      if (p.x > CANVAS_W) p.x -= CANVAS_W;
+      if (p.y < 0) p.y += CANVAS_H;
+      if (p.y > CANVAS_H) p.y -= CANVAS_H;
+    }
+  }
+
+  private drawCosmicParticles(ctx: CanvasRenderingContext2D): void {
+    ctx.save();
+    for (const p of this.cosmicParticles) {
+      ctx.globalAlpha = p.opacity;
+      ctx.fillStyle = p.color;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.restore();
+  }
+
   private drawCourt(ctx: CanvasRenderingContext2D): void {
-    // Court floor / background
-    ctx.fillStyle = '#0d1225';
+    // Metallic platform
+    ctx.fillStyle = COLOR_FLOOR;
     ctx.fillRect(COURT_X, COURT_Y, COURT_W, COURT_H);
 
-    // Floor strip (bottom when gravity is DOWN)
-    ctx.fillStyle = COLOR_FLOOR;
-    ctx.fillRect(COURT_X, COURT_Y + COURT_H - 6, COURT_W, 6);
+    // Subtle reflective gradient at bottom
+    const grad = ctx.createLinearGradient(
+      COURT_X,
+      COURT_Y + COURT_H - 60,
+      COURT_X,
+      COURT_Y + COURT_H,
+    );
+    grad.addColorStop(0, 'rgba(255,255,255,0)');
+    grad.addColorStop(1, 'rgba(255,255,255,0.04)');
+    ctx.fillStyle = grad;
+    ctx.fillRect(COURT_X, COURT_Y + COURT_H - 60, COURT_W, 60);
 
     // Court border
-    ctx.strokeStyle = '#2a3050';
+    ctx.strokeStyle = '#1a2040';
     ctx.lineWidth = 2;
     ctx.strokeRect(COURT_X, COURT_Y, COURT_W, COURT_H);
   }
@@ -704,42 +788,35 @@ export class VolleyballGame implements IGame {
     ctx.save();
     const isVerticalGravity = this.gravity === 'DOWN' || this.gravity === 'UP';
 
+    ctx.shadowColor = '#cc00ff';
+    ctx.shadowBlur = 12;
+
     if (isVerticalGravity) {
       const netH = COURT_H * NET_HEIGHT_RATIO;
       const netTop = this.gravity === 'DOWN' ? COURT_Y + COURT_H - netH : COURT_Y;
 
-      // Glow
-      ctx.shadowColor = COLOR_NET;
-      ctx.shadowBlur = 8;
-      ctx.fillStyle = COLOR_NET;
+      const grad = ctx.createLinearGradient(NET_X, netTop, NET_X, netTop + netH);
+      grad.addColorStop(0, '#9b00ff');
+      grad.addColorStop(1, '#ff00ff');
+      ctx.fillStyle = grad;
       ctx.fillRect(NET_X, netTop, NET_W, netH);
-
-      // Posts
-      ctx.shadowBlur = 0;
-      ctx.fillStyle = '#cccccc';
-      ctx.fillRect(NET_X - 2, netTop - 4, NET_W + 4, 8);
-      ctx.fillRect(NET_X - 2, netTop + netH - 4, NET_W + 4, 8);
     } else {
-      // Horizontal net at center of court (top-bottom split)
       const netMidY = COURT_Y + COURT_H / 2 - NET_W / 2;
       const netLength = COURT_H * NET_HEIGHT_RATIO;
       const netStart = this.gravity === 'LEFT' ? COURT_X : COURT_X + COURT_W - netLength;
 
-      ctx.shadowColor = COLOR_NET;
-      ctx.shadowBlur = 8;
-      ctx.fillStyle = COLOR_NET;
+      const grad = ctx.createLinearGradient(netStart, netMidY, netStart + netLength, netMidY);
+      grad.addColorStop(0, '#9b00ff');
+      grad.addColorStop(1, '#ff00ff');
+      ctx.fillStyle = grad;
       ctx.fillRect(netStart, netMidY, netLength, NET_W);
-
-      // Posts
-      ctx.shadowBlur = 0;
-      ctx.fillStyle = '#cccccc';
-      ctx.fillRect(netStart - 4, netMidY - 2, 8, NET_W + 4);
-      ctx.fillRect(netStart + netLength - 4, netMidY - 2, 8, NET_W + 4);
     }
     ctx.restore();
   }
 
   private drawBall(ctx: CanvasRenderingContext2D): void {
+    const edgeColor = GRAVITY_COLORS[this.gravity];
+
     // Trail
     ctx.save();
     for (let i = 0; i < this.ball.trail.length; i++) {
@@ -747,7 +824,7 @@ export class VolleyballGame implements IGame {
       if (!t) continue;
       const alpha = ((i + 1) / this.ball.trail.length) * 0.3;
       ctx.globalAlpha = alpha;
-      ctx.fillStyle = COLOR_BALL;
+      ctx.fillStyle = edgeColor;
       ctx.beginPath();
       const trailR = BALL_RADIUS * ((i + 1) / this.ball.trail.length) * 0.7;
       ctx.arc(t.x, t.y, trailR, 0, Math.PI * 2);
@@ -755,23 +832,86 @@ export class VolleyballGame implements IGame {
     }
     ctx.restore();
 
-    // Ball
+    // Cosmic orb
     ctx.save();
-    ctx.shadowColor = COLOR_BALL;
-    ctx.shadowBlur = 10;
-    ctx.fillStyle = COLOR_BALL;
+    ctx.shadowColor = edgeColor;
+    ctx.shadowBlur = 14;
+    const grad = ctx.createRadialGradient(
+      this.ball.x,
+      this.ball.y,
+      0,
+      this.ball.x,
+      this.ball.y,
+      BALL_RADIUS,
+    );
+    grad.addColorStop(0, '#ffffff');
+    grad.addColorStop(1, edgeColor);
+    ctx.fillStyle = grad;
     ctx.beginPath();
     ctx.arc(this.ball.x, this.ball.y, BALL_RADIUS, 0, Math.PI * 2);
     ctx.fill();
+
+    // Orbital ring
+    ctx.strokeStyle = edgeColor;
+    ctx.lineWidth = 1.5;
+    ctx.globalAlpha = 0.5;
+    ctx.beginPath();
+    ctx.ellipse(
+      this.ball.x,
+      this.ball.y,
+      BALL_RADIUS + 4,
+      BALL_RADIUS * 0.4,
+      this.elapsed * 2,
+      0,
+      Math.PI * 2,
+    );
+    ctx.stroke();
     ctx.restore();
   }
 
   private drawPlayer(ctx: CanvasRenderingContext2D, player: Player, color: string): void {
     ctx.save();
+    const bx = player.x;
+    const by = player.y;
+    const helmetR = PLAYER_W * 0.45;
+
+    // Body — rounded rectangle with gradient
     ctx.shadowColor = color;
     ctx.shadowBlur = 6;
+    const bodyGrad = ctx.createLinearGradient(bx, by + helmetR * 2, bx + PLAYER_W, by + PLAYER_H);
+    bodyGrad.addColorStop(0, color);
+    bodyGrad.addColorStop(1, '#111122');
+    ctx.fillStyle = bodyGrad;
+    const bodyTop = by + helmetR * 1.5;
+    const bodyH = PLAYER_H - helmetR * 1.5;
+    const cr = 4;
+    ctx.beginPath();
+    ctx.moveTo(bx + cr, bodyTop);
+    ctx.lineTo(bx + PLAYER_W - cr, bodyTop);
+    ctx.quadraticCurveTo(bx + PLAYER_W, bodyTop, bx + PLAYER_W, bodyTop + cr);
+    ctx.lineTo(bx + PLAYER_W, bodyTop + bodyH - cr);
+    ctx.quadraticCurveTo(bx + PLAYER_W, bodyTop + bodyH, bx + PLAYER_W - cr, bodyTop + bodyH);
+    ctx.lineTo(bx + cr, bodyTop + bodyH);
+    ctx.quadraticCurveTo(bx, bodyTop + bodyH, bx, bodyTop + bodyH - cr);
+    ctx.lineTo(bx, bodyTop + cr);
+    ctx.quadraticCurveTo(bx, bodyTop, bx + cr, bodyTop);
+    ctx.closePath();
+    ctx.fill();
+
+    // Helmet — circle at top
+    ctx.shadowBlur = 0;
+    const hx = bx + PLAYER_W / 2;
+    const hy = by + helmetR;
     ctx.fillStyle = color;
-    ctx.fillRect(player.x, player.y, PLAYER_W, PLAYER_H);
+    ctx.beginPath();
+    ctx.arc(hx, hy, helmetR, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Visor
+    ctx.fillStyle = 'rgba(200,230,255,0.7)';
+    ctx.beginPath();
+    ctx.arc(hx + (player.side === 1 ? 2 : -2), hy, helmetR * 0.55, 0, Math.PI * 2);
+    ctx.fill();
     ctx.restore();
   }
 
@@ -788,7 +928,7 @@ export class VolleyballGame implements IGame {
     const pulse = 0.6 + 0.4 * Math.sin(this.elapsed * 10);
 
     ctx.globalAlpha = pulse * 0.7;
-    ctx.fillStyle = '#ffaa00';
+    ctx.fillStyle = GRAVITY_COLORS[this.nextGravity];
     ctx.translate(cx, cy);
 
     // Rotate based on next gravity direction
@@ -832,7 +972,7 @@ export class VolleyballGame implements IGame {
 
     ctx.save();
     ctx.globalAlpha = 0.7;
-    ctx.fillStyle = '#ffaa00';
+    ctx.fillStyle = GRAVITY_COLORS[this.gravity];
     ctx.translate(ix, iy);
 
     let angle = 0;
@@ -859,6 +999,48 @@ export class VolleyballGame implements IGame {
     ctx.closePath();
     ctx.fill();
 
+    ctx.restore();
+  }
+
+  private drawGravityChangeArrow(ctx: CanvasRenderingContext2D): void {
+    ctx.save();
+    const cx = CANVAS_W / 2;
+    const cy = CANVAS_H / 2;
+    const alpha = Math.max(0, this.gravityChangeArrowTimer);
+    const color = GRAVITY_COLORS[this.gravity];
+
+    ctx.globalAlpha = alpha * 0.6;
+    ctx.fillStyle = color;
+    ctx.translate(cx, cy);
+
+    let angle = 0;
+    switch (this.gravity) {
+      case 'DOWN':
+        angle = Math.PI / 2;
+        break;
+      case 'UP':
+        angle = -Math.PI / 2;
+        break;
+      case 'LEFT':
+        angle = Math.PI;
+        break;
+      case 'RIGHT':
+        angle = 0;
+        break;
+    }
+    ctx.rotate(angle);
+
+    const size = 60;
+    ctx.beginPath();
+    ctx.moveTo(size, 0);
+    ctx.lineTo(-size * 0.3, -size * 0.6);
+    ctx.lineTo(-size * 0.3, -size * 0.2);
+    ctx.lineTo(-size, -size * 0.2);
+    ctx.lineTo(-size, size * 0.2);
+    ctx.lineTo(-size * 0.3, size * 0.2);
+    ctx.lineTo(-size * 0.3, size * 0.6);
+    ctx.closePath();
+    ctx.fill();
     ctx.restore();
   }
 
