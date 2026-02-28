@@ -214,9 +214,15 @@ export class FormulaGame implements IGame {
     tailLen: number;
   }> = [];
 
+  private aiEnabled = false;
+
   // ── IGame lifecycle ──────────────────────────────────────────────────────
   setDurationMultiplier(mult: number): void {
     this.durationMult = mult;
+  }
+
+  setAIMode(enabled: boolean): void {
+    this.aiEnabled = enabled;
   }
 
   init(_canvas: HTMLCanvasElement, _ctx: CanvasRenderingContext2D): void {
@@ -293,7 +299,41 @@ export class FormulaGame implements IGame {
     }
 
     const p1Input = this.input.getPlayer1();
-    const p2Input = this.input.getPlayer2();
+    let p2Input = this.input.getPlayer2();
+
+    if (this.aiEnabled) {
+      const car = this.cars[1];
+      // Find the closest track parameter t for the AI car
+      let bestT = 0;
+      let bestDist = Infinity;
+      for (let i = 0; i < TRACK_POINTS; i++) {
+        const t = (i / TRACK_POINTS) * Math.PI * 2;
+        const pt = trackCenterPoint(t);
+        const d = dist(car.x, car.y, pt.x, pt.y);
+        if (d < bestDist) {
+          bestDist = d;
+          bestT = t;
+        }
+      }
+      // Look ahead on the track center line
+      const lookAhead = bestT + 0.3;
+      const target = trackCenterPoint(lookAhead);
+      const targetAngle = Math.atan2(target.y - car.y, target.x - car.x);
+      // Normalize angle difference to [-PI, PI]
+      let angleDiff = targetAngle - car.angle;
+      while (angleDiff > Math.PI) angleDiff -= Math.PI * 2;
+      while (angleDiff < -Math.PI) angleDiff += Math.PI * 2;
+      const steerThreshold = 0.05;
+      p2Input = {
+        up: true,
+        down: false,
+        left: angleDiff < -steerThreshold,
+        right: angleDiff > steerThreshold,
+        action1: car.turboCooldown <= 0,
+        action2: false,
+      };
+    }
+
     this.updateCar(0, p1Input, dt);
     this.updateCar(1, p2Input, dt);
 
