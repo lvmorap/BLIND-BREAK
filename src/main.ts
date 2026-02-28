@@ -34,10 +34,10 @@ const gameRegistry: GameInfo[] = [
   },
   {
     id: 'sumo',
-    name: 'SUMO ORBITAL',
-    subtitle: 'Last warrior standing in the ring of Saturn',
-    icon: '🥋',
-    color: '#c4a44a',
+    name: 'VOLCANIC SUMO',
+    subtitle: 'Last warrior standing on the volcano',
+    icon: '🌋',
+    color: '#ff6622',
     factory: () => new SumoGame(),
   },
   {

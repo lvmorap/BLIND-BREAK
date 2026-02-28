@@ -6,7 +6,7 @@ const LORE_MAP: Record<string, string> = {
   billiards: 'The Nexari first observed humans playing billiards in darkened rooms...',
   pingpong: 'The Nexari were baffled that humans chose to play this sport on tables...',
   soccer: 'Zero-gravity soccer was the sport the Nexari understood least...',
-  sumo: 'The Nexari found Sumo wrestling closest to their own combat traditions...',
+  sumo: 'The ancient volcano arena: only the strongest survive the molten fury...',
   formula: 'The Nexari watched human racing and one question haunted them...',
   volleyball: 'The concept of opposing sides separated by a net was immediately comprehensible...',
 };
@@ -16,7 +16,8 @@ function getGameLoreKey(gameId: string): string {
     return 'billiards';
   if (gameId.includes('ping') || gameId.includes('pulsar')) return 'pingpong';
   if (gameId.includes('soccer') || gameId.includes('zero')) return 'soccer';
-  if (gameId.includes('sumo') || gameId.includes('orbital')) return 'sumo';
+  if (gameId.includes('sumo') || gameId.includes('orbital') || gameId.includes('volcan'))
+    return 'sumo';
   if (gameId.includes('formula') || gameId.includes('race') || gameId.includes('saturn'))
     return 'formula';
   if (gameId.includes('volley') || gameId.includes('cosmic') || gameId.includes('gravity'))
