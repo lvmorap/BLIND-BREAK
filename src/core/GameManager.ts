@@ -470,7 +470,8 @@ export class GameManager {
     ctx.globalAlpha = 0.7;
     ctx.font = '400 15px Rajdhani, sans-serif';
     ctx.fillStyle = '#e0d5c0';
-    const flavorLine = this.roundFlavorLines[this.roundFlavorIndex] ?? this.roundFlavorLines[0]!;
+    const flavorLine =
+      this.roundFlavorLines[this.roundFlavorIndex] ?? this.roundFlavorLines[0] ?? '';
     ctx.fillText(flavorLine, w / 2, h / 2 + 12);
     ctx.restore();
 
@@ -561,9 +562,10 @@ export class GameManager {
     ctx.font = '600 16px Rajdhani, sans-serif';
     for (let i = 0; i < rows.length; i++) {
       const y = tableY + 20 + (i + 1) * lineH;
-      const row = rows[i]!;
-      ctx.fillText(row[0]!, col1X, y);
-      ctx.fillText(row[1]!, col2X, y);
+      const row = rows[i];
+      if (!row) continue;
+      ctx.fillText(row[0] ?? '', col1X, y);
+      ctx.fillText(row[1] ?? '', col2X, y);
     }
 
     // Close hint

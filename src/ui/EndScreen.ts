@@ -27,7 +27,8 @@ export class EndScreen {
     this.rounds = rounds;
     this.nexariMessage =
       EndScreen.NEXARI_MESSAGES[Math.floor(Math.random() * EndScreen.NEXARI_MESSAGES.length)] ??
-      EndScreen.NEXARI_MESSAGES[0]!;
+      EndScreen.NEXARI_MESSAGES[0] ??
+      '';
   }
 
   update(dt: number): void {
