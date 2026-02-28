@@ -1533,7 +1533,7 @@ function drawHUD() {
   ctx.fillText('PLAYER', 20, C.H - 55);
   ctx.fillStyle = '#557788';
   ctx.font = '11px Rajdhani';
-  ctx.fillText(`B:${endStats.player.blind} S:${endStats.player.shadow} L:${endStats.player.lit}`, 20, C.H - 68);
+  ctx.fillText(`Blind:${endStats.player.blind} Shd:${endStats.player.shadow} Lit:${endStats.player.lit}`, 20, C.H - 68);
 
   // AI score
   ctx.fillStyle = C.AI_COLOR;
@@ -1550,7 +1550,7 @@ function drawHUD() {
   ctx.fillText('AI', C.W - 20, C.H - 55);
   ctx.fillStyle = '#885566';
   ctx.font = '11px Rajdhani';
-  ctx.fillText(`B:${endStats.ai.blind} S:${endStats.ai.shadow} L:${endStats.ai.lit}`, C.W - 20, C.H - 68);
+  ctx.fillText(`Blind:${endStats.ai.blind} Shd:${endStats.ai.shadow} Lit:${endStats.ai.lit}`, C.W - 20, C.H - 68);
 
   // Round
   ctx.fillStyle = '#888';
