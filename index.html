@@ -153,6 +153,8 @@ let settleTimer = 0;
 let reconBeamAnim = null; // {startTime, angle, duration:800}
 let firstShotCoach = true; // Show coaching on first shot
 let roundTransMsg = null; // {text, color, timer, maxTimer}
+let scoringReminder = null; // {x, y, ghostId, timer, maxTimer}
+let scoringReminderShown = false;
 let audioCtx = null;
 let audioInited = false;
 let ambientNode = null;
@@ -196,7 +198,8 @@ function resetBalls() {
       vx:0, vy:0, color:BALL_COLORS[i+1], num:BALL_NAMES[i+1],
       lastLitX: bx, lastLitY: by,
       alive:true, sinking:false, sinkTimer:0, sinkScale:1,
-      trail:[], squash:{sx:1,sy:1,timer:0}
+      trail:[], squash:{sx:1,sy:1,timer:0},
+      visAlpha: 1.0
     });
   }
 }
@@ -223,6 +226,8 @@ function resetGame() {
   reconBeamAnim = null;
   firstShotCoach = true;
   roundTransMsg = null;
+  scoringReminder = null;
+  scoringReminderShown = false;
   power = 0; charging = false; chargeTime = 0;
   reconMode = false;
   aiState = 'IDLE';
@@ -590,6 +595,14 @@ function updatePhysics(dt) {
     // Ball trail particles
     spawnBallTrail(b);
     updateSquash(b, realDt);
+
+    // Smooth visibility fade for object balls
+    if (b.id > 0) {
+      const targetAlpha = getLightLevel(b.x, b.y) > 0.1 ? 1.0 : 0.0;
+      const fadeSpeed = targetAlpha > b.visAlpha ? 0.08 : 0.04; // fade in faster than fade out
+      b.visAlpha += (targetAlpha - b.visAlpha) * fadeSpeed * dt * 60;
+      b.visAlpha = Math.max(0, Math.min(1, b.visAlpha));
+    }
   }
 
   // Ball-ball collisions
@@ -1261,6 +1274,29 @@ function drawReconButton() {
   ctx.font = 'bold 12px Orbitron';
   ctx.textAlign = 'center';
   ctx.fillText('RECON', bx + bw/2, by + 20);
+
+  // Hover tooltip (Section 19C)
+  if (mouseX >= bx && mouseX <= bx+bw && mouseY >= by && mouseY <= by+bh) {
+    const tx = bx, ty = by + bh + 8;
+    ctx.fillStyle = 'rgba(10,10,15,0.9)';
+    ctx.fillRect(tx, ty, 200, 58);
+    ctx.strokeStyle = '#ff4466';
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.moveTo(tx, ty); ctx.lineTo(tx, ty + 58);
+    ctx.stroke();
+    ctx.lineWidth = 1;
+    ctx.textAlign = 'left';
+    ctx.fillStyle = '#ff4466';
+    ctx.font = 'bold 13px Rajdhani';
+    ctx.fillText('SACRIFICE THIS TURN', tx + 10, ty + 18);
+    ctx.fillStyle = '#aaa';
+    ctx.font = '12px Rajdhani';
+    ctx.fillText('to illuminate dark zones', tx + 10, ty + 34);
+    ctx.fillStyle = 'rgba(170,170,170,0.6)';
+    ctx.font = '11px Rajdhani';
+    ctx.fillText('One use only. Choose wisely.', tx + 10, ty + 50);
+  }
 }
 
 function drawChargingEffects(t) {
@@ -1492,10 +1528,37 @@ function drawAIThinking(t) {
   ctx.beginPath();
   ctx.ellipse(eyeX, eyeY, 15, 8, 0, 0, Math.PI*2);
   ctx.stroke();
+  // Pupil scans toward visible balls
+  let scanTargetX = eyeX + Math.cos(aiScanAnim) * 6;
+  let bestBallForScan = null;
+  for (let i = 1; i < balls.length; i++) {
+    if (!balls[i].alive) continue;
+    if (getLightLevel(balls[i].x, balls[i].y) > 0.3) {
+      bestBallForScan = balls[i]; break;
+    }
+  }
+  if (bestBallForScan) {
+    const dirX = bestBallForScan.x - eyeX;
+    const dirY = bestBallForScan.y - eyeY;
+    const dirLen = Math.sqrt(dirX*dirX+dirY*dirY);
+    scanTargetX = eyeX + (dirX/dirLen) * 6;
+  }
   ctx.fillStyle = C.AI_COLOR;
   ctx.beginPath();
-  ctx.arc(eyeX + Math.cos(aiScanAnim)*6, eyeY, 3, 0, Math.PI*2);
+  ctx.arc(scanTargetX, eyeY, 3, 0, Math.PI*2);
   ctx.fill();
+
+  // Dotted arc to focused ball
+  if (bestBallForScan) {
+    ctx.strokeStyle = `rgba(255,68,102,0.4)`;
+    ctx.setLineDash([6, 4]);
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(eyeX, eyeY + 8);
+    ctx.lineTo(bestBallForScan.x, bestBallForScan.y);
+    ctx.stroke();
+    ctx.setLineDash([]);
+  }
 
   ctx.restore();
 }
@@ -1521,6 +1584,11 @@ function resolveTurn() {
         existing.x = b.lastLitX; existing.y = b.lastLitY; existing.round = currentRound;
       } else {
         ghostBalls.push({id:b.id, x:b.lastLitX, y:b.lastLitY, color:b.color, round:currentRound});
+        // Scoring reminder tooltip on first ghost
+        if (!scoringReminderShown && !scoringReminder) {
+          scoringReminder = {x:b.lastLitX, y:b.lastLitY, ghostId:b.id, timer:4000, maxTimer:4000};
+          scoringReminderShown = true;
+        }
       }
     } else if (ll > 0.1) {
       // Remove ghost if ball is currently lit (it's visible now)
@@ -1679,6 +1747,12 @@ function drawMenu(t) {
   ctx.fillStyle = '#555';
   ctx.font = '12px Rajdhani';
   ctx.fillText('vs AI · 7 Rounds · First to most points wins', C.W/2, 490);
+
+  // "? TUTORIAL" top-right corner
+  ctx.fillStyle = 'rgba(200,200,200,0.35)';
+  ctx.font = '13px Rajdhani';
+  ctx.textAlign = 'right';
+  ctx.fillText('? TUTORIAL', C.W - 18, 28);
 }
 
 function drawCountdown(t) {
@@ -1703,6 +1777,7 @@ function drawCountdown(t) {
   ctx.shadowBlur = 30;
 
   const text = countdownVal > 0 ? countdownVal.toString() : 'BREAK!';
+  ctx.fillStyle = countdownVal <= 0 ? '#ffd700' : '#fff';
   ctx.fillText(text, 0, 0);
   ctx.shadowBlur = 0;
   ctx.restore();
@@ -1768,18 +1843,36 @@ function drawEndScreen(t) {
 }
 
 function drawPauseMenu() {
-  ctx.fillStyle = 'rgba(5,5,8,0.75)';
+  ctx.fillStyle = 'rgba(5,5,8,0.82)';
   ctx.fillRect(0, 0, C.W, C.H);
 
-  ctx.fillStyle = '#fff';
+  ctx.fillStyle = '#e0d5c0';
   ctx.font = 'bold 36px Orbitron';
   ctx.textAlign = 'center';
+  ctx.shadowColor = C.NEON_COLOR;
+  ctx.shadowBlur = 20;
   ctx.fillText('PAUSED', C.W/2, 200);
+  ctx.shadowBlur = 0;
 
-  const opts = ['[SPACE] Resume', '[R] Restart', '[T] Tutorial'];
-  ctx.font = '20px Rajdhani';
-  ctx.fillStyle = '#aaa';
-  opts.forEach((o, i) => ctx.fillText(o, C.W/2, 270 + i*40));
+  const opts = [
+    {label:'RESUME', key:'SPACE', color:'#00e5ff'},
+    {label:'RESTART', key:'R', color:'#ff8800'},
+    {label:'TUTORIAL', key:'T', color:'#aaaaaa'}
+  ];
+  opts.forEach((o, i) => {
+    const oy = 265 + i * 50;
+    ctx.fillStyle = 'rgba(255,255,255,0.05)';
+    ctx.fillRect(C.W/2 - 110, oy - 18, 220, 36);
+    ctx.strokeStyle = o.color;
+    ctx.lineWidth = 1;
+    ctx.strokeRect(C.W/2 - 110, oy - 18, 220, 36);
+    ctx.fillStyle = o.color;
+    ctx.font = 'bold 18px Orbitron';
+    ctx.fillText(o.label, C.W/2, oy + 6);
+    ctx.fillStyle = 'rgba(255,255,255,0.3)';
+    ctx.font = '11px Rajdhani';
+    ctx.fillText(`[${o.key}]`, C.W/2, oy + 22);
+  });
 }
 
 // ===== TUTORIAL =====
@@ -1918,7 +2011,7 @@ function drawTutorial(t) {
   const flash = 0.5 + 0.5 * Math.sin(t * 0.005);
   ctx.fillStyle = `rgba(255,255,255,${flash})`;
   ctx.font = '14px Orbitron';
-  ctx.fillText('SPACE to continue', cx, cy + 208);
+  ctx.fillText('Click or SPACE to continue', cx, cy + 208);
 }
 
 // ===== MAIN SCENE DRAWING =====
@@ -1927,9 +2020,9 @@ function drawScene(t) {
   drawWallSconces();
   drawTable();
   drawLamps();
-  drawGhostBalls();
   drawBalls();
   if (gameState === 'PLAYING') drawDarkness();
+  drawGhostBalls();
   drawParticles();
   drawNeonSign(t);
   drawAimLine();
@@ -1942,6 +2035,7 @@ function drawScene(t) {
   drawHUD();
   drawRoundTransition();
   drawFirstShotCoach(t);
+  drawScoringReminder(t);
 }
 
 function drawRoundTransition() {
@@ -2001,6 +2095,36 @@ function drawFirstShotCoach(t) {
   }
 }
 
+function drawScoringReminder(t) {
+  if (!scoringReminder || scoringReminder.timer <= 0) return;
+  const sr = scoringReminder;
+  const alpha = Math.min(1, sr.timer / 500) * Math.min(1, (sr.maxTimer - sr.timer) / 300);
+  const bx = sr.x + 30, by = sr.y - 30;
+  ctx.save();
+  ctx.globalAlpha = alpha;
+  // Dashed line from ghost to tooltip
+  const dashPulse = 0.4 + 0.6 * Math.abs(Math.sin(t * 0.004));
+  ctx.strokeStyle = `rgba(255,215,0,${dashPulse * alpha})`;
+  ctx.setLineDash([4, 4]);
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(sr.x, sr.y);
+  ctx.lineTo(bx, by);
+  ctx.stroke();
+  ctx.setLineDash([]);
+  // Tooltip box
+  ctx.fillStyle = 'rgba(10,10,15,0.85)';
+  ctx.fillRect(bx, by - 14, 140, 28);
+  ctx.strokeStyle = 'rgba(255,215,0,0.5)';
+  ctx.lineWidth = 1;
+  ctx.strokeRect(bx, by - 14, 140, 28);
+  ctx.fillStyle = '#ffd700';
+  ctx.font = 'bold 13px Rajdhani';
+  ctx.textAlign = 'left';
+  ctx.fillText('SHOOT BLIND → 3 PTS ⚡', bx + 6, by + 5);
+  ctx.restore();
+}
+
 // ===== INPUT =====
 canvas.addEventListener('mousedown', (e) => {
   initAudio();
@@ -2010,6 +2134,49 @@ canvas.addEventListener('mousedown', (e) => {
   mouseX = (e.clientX - rect.left) * scaleX;
   mouseY = (e.clientY - rect.top) * scaleY;
   mouseDown = true;
+
+  // Tutorial: click to advance
+  if (gameState === 'TUTORIAL') {
+    tutorialStep++;
+    if (tutorialStep >= C.TUTORIAL_STEPS) {
+      resetGame();
+      gameState = 'COUNTDOWN';
+      countdownVal = 3;
+      countdownTimer = 0;
+    }
+    return;
+  }
+
+  // Menu: click "? TUTORIAL" region or anywhere to begin
+  if (gameState === 'PRELOAD' || gameState === 'MENU') {
+    // Check if "? TUTORIAL" top-right was clicked
+    if (mouseX > C.W - 100 && mouseY < 40) {
+      gameState = 'TUTORIAL';
+      tutorialStep = 0;
+      tutorialSeen = true;
+      return;
+    }
+    if (!tutorialSeen) {
+      gameState = 'TUTORIAL';
+      tutorialStep = 0;
+      tutorialSeen = true;
+    } else {
+      resetGame();
+      gameState = 'COUNTDOWN';
+      countdownVal = 3;
+      countdownTimer = 0;
+    }
+    return;
+  }
+
+  // End screen: click to restart
+  if (gameState === 'ENDSCREEN') {
+    resetGame();
+    gameState = 'COUNTDOWN';
+    countdownVal = 3;
+    countdownTimer = 0;
+    return;
+  }
 
   if (gameState !== 'PLAYING' || currentTurn !== 'PLAYER' || turnPhase !== 'AIM') return;
 
@@ -2088,6 +2255,21 @@ document.addEventListener('keydown', (e) => {
     colorBlind = !colorBlind;
     document.getElementById('colorblindIndicator').classList.toggle('hidden', !colorBlind);
     return;
+  }
+
+  if (e.code === 'KeyT') {
+    if (gameState === 'PLAYING') {
+      paused = false;
+      gameState = 'TUTORIAL';
+      tutorialStep = 0;
+      return;
+    }
+    if (gameState === 'MENU' || gameState === 'PRELOAD') {
+      gameState = 'TUTORIAL';
+      tutorialStep = 0;
+      tutorialSeen = true;
+      return;
+    }
   }
 
   if (paused) {
@@ -2201,6 +2383,14 @@ function update(dt) {
   if (roundTransMsg && roundTransMsg.timer > 0) {
     roundTransMsg.timer -= dt * 1000;
   }
+
+  // Scoring reminder timer
+  if (scoringReminder && scoringReminder.timer > 0) {
+    scoringReminder.timer -= dt * 1000;
+    if (scoringReminder.timer <= 0) scoringReminder = null;
+  }
+  // Dismiss scoring reminder on shot
+  if (scoringReminder && turnPhase === 'ROLLING') scoringReminder = null;
 
   // First shot coach disable after first drag
   if (firstShotCoach && dragging) { firstShotCoach = false; }
