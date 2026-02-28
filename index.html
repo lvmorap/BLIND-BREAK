@@ -260,7 +260,7 @@ function prerenderFelt() {
     fctx.arc(x, y, 0.5, 0, Math.PI*2);
     fctx.fill();
   }
-  // Fiber lines (Section 18F)
+  // Fiber lines (Section 20B)
   for (let i = 0; i < 200; i++) {
     const fx = Math.random() * C.TABLE_W;
     const fy = Math.random() * C.TABLE_H;
@@ -752,8 +752,8 @@ function sinkBall(ball, pocket) {
   }
 
   // Ghost ball at last known lit position (Section 22)
-  const gx = (ball.lastLitX !== undefined && ball.lastLitX !== 0) ? ball.lastLitX : ball.x;
-  const gy = (ball.lastLitY !== undefined && ball.lastLitY !== 0) ? ball.lastLitY : ball.y;
+  const gx = ball.lastLitX !== undefined ? ball.lastLitX : ball.x;
+  const gy = ball.lastLitY !== undefined ? ball.lastLitY : ball.y;
   ghostBalls.push({id:ball.id, x:gx, y:gy, color:ball.color, round:currentRound});
 }
 
@@ -2121,8 +2121,8 @@ function drawScene(t) {
   drawWallSconces();
   ctx.restore();
 
-  // Parallax Layer 2: table/rails offset (Section 21C)
-  const tableParX = (parallaxTargetX) * 0.375; // 0.003/0.008 ratio
+  // Parallax Layer 2: table/rails offset (Section 21C) - 3/8 of background offset
+  const tableParX = (parallaxTargetX) * 0.375;
   const tableParY = (parallaxTargetY) * 0.375;
   ctx.save();
   ctx.translate(tableParX, tableParY);
@@ -2567,13 +2567,14 @@ function draw(t) {
     // Chromatic aberration (Section 18F)
     if (chromaticTimer > 0) {
       const offset = chromaticTimer * 1.5;
+      // Copy current frame to light canvas as temp buffer
+      lctx.clearRect(0, 0, C.W, C.H);
+      lctx.drawImage(canvas, 0, 0);
       ctx.save();
       ctx.globalCompositeOperation = 'lighter';
       ctx.globalAlpha = 0.08;
-      // Red channel shift
-      ctx.drawImage(canvas, offset, 0);
-      // Blue channel shift
-      ctx.drawImage(canvas, -offset, 0);
+      ctx.drawImage(lightCanvas, offset, 0);
+      ctx.drawImage(lightCanvas, -offset, 0);
       ctx.restore();
     }
     if (paused) drawPauseMenu();
