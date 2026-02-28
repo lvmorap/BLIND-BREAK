@@ -110,11 +110,11 @@ export function drawAIThinking(): void {
   ctx.textAlign = 'center';
   ctx.shadowColor = C.AI_COLOR;
   ctx.shadowBlur = 10;
-  ctx.fillText('AI THINKING...', C.W / 2, 30);
+  ctx.fillText('AI THINKING...', C.W / 2, 58);
   ctx.shadowBlur = 0;
 
   const eyeX = C.W / 2;
-  const eyeY = 48;
+  const eyeY = 76;
   ctx.strokeStyle = `rgba(255,68,102,${pulse})`;
   ctx.lineWidth = 2;
   ctx.beginPath();

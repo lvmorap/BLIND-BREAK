@@ -7,42 +7,46 @@ export function drawHUD(): void {
   const p1Label = isLocal ? 'PLAYER 1' : 'PLAYER';
   const p2Label = isLocal ? 'PLAYER 2' : 'AI';
 
+  // Player 1 score — bottom left
   ctx.fillStyle = C.PLAYER_COLOR;
   ctx.font = 'bold 48px Orbitron';
   ctx.textAlign = 'left';
   ctx.shadowColor = C.PLAYER_COLOR;
   ctx.shadowBlur = 10;
-  ctx.fillText(state.playerScore.toString(), 20, C.H - 20);
+  ctx.fillText(state.playerScore.toString(), 20, C.H - 16);
   ctx.shadowBlur = 0;
 
   ctx.fillStyle = '#88bbcc';
   ctx.font = '14px Rajdhani';
-  ctx.fillText(p1Label, 20, C.H - 55);
+  ctx.fillText(p1Label, 20, C.H - 58);
   ctx.fillStyle = '#557788';
   ctx.font = '11px Rajdhani';
-  ctx.fillText(`Pocketed: ${state.endStats.player.lit}`, 20, C.H - 68);
+  ctx.fillText(`Pocketed: ${state.endStats.player.lit}`, 20, C.H - 72);
 
+  // Player 2 / AI score — bottom right
   ctx.fillStyle = C.AI_COLOR;
   ctx.font = 'bold 48px Orbitron';
   ctx.textAlign = 'right';
   ctx.shadowColor = C.AI_COLOR;
   ctx.shadowBlur = 10;
-  ctx.fillText(state.aiScore.toString(), C.W - 20, C.H - 20);
+  ctx.fillText(state.aiScore.toString(), C.W - 20, C.H - 16);
   ctx.shadowBlur = 0;
 
   ctx.fillStyle = '#cc8899';
   ctx.font = '14px Rajdhani';
   ctx.textAlign = 'right';
-  ctx.fillText(p2Label, C.W - 20, C.H - 55);
+  ctx.fillText(p2Label, C.W - 20, C.H - 58);
   ctx.fillStyle = '#885566';
   ctx.font = '11px Rajdhani';
-  ctx.fillText(`Pocketed: ${state.endStats.ai.lit}`, C.W - 20, C.H - 68);
+  ctx.fillText(`Pocketed: ${state.endStats.ai.lit}`, C.W - 20, C.H - 72);
 
+  // Round indicator — top center
   ctx.fillStyle = '#888';
-  ctx.font = 'bold 16px Orbitron';
+  ctx.font = 'bold 14px Orbitron';
   ctx.textAlign = 'center';
-  ctx.fillText(`ROUND ${state.currentRound}/${C.ROUNDS}`, C.W / 2, C.H - 12);
+  ctx.fillText(`ROUND ${state.currentRound}/${C.ROUNDS}`, C.W / 2, 20);
 
+  // Turn indicator — below round
   let turnText: string;
   if (isLocal) {
     turnText = state.currentTurn === 'PLAYER' ? 'P1 TURN' : 'P2 TURN';
@@ -51,8 +55,8 @@ export function drawHUD(): void {
   }
   const turnColor = state.currentTurn === 'PLAYER' ? C.PLAYER_COLOR : C.AI_COLOR;
   ctx.fillStyle = turnColor;
-  ctx.font = 'bold 14px Orbitron';
-  ctx.fillText(turnText, C.W / 2, C.H - 32);
+  ctx.font = 'bold 13px Orbitron';
+  ctx.fillText(turnText, C.W / 2, 38);
 }
 
 export function drawAimLine(): void {
