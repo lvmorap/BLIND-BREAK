@@ -1,0 +1,35 @@
+{
+  "name": "blind-break",
+  "version": "1.0.0",
+  "description": "BLIND BREAK — Noir Billiards in the Dark. EA Game Jam 2025.",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint src/ --max-warnings 0",
+    "format": "prettier --write \"src/**/*.ts\" \"*.json\" \"*.html\"",
+    "format:check": "prettier --check \"src/**/*.ts\" \"*.json\" \"*.html\""
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/lvmorap/BLIND-BREAK.git"
+  },
+  "keywords": ["game", "billiards", "canvas", "typescript"],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/lvmorap/BLIND-BREAK/issues"
+  },
+  "homepage": "https://github.com/lvmorap/BLIND-BREAK#readme",
+  "devDependencies": {
+    "@typescript-eslint/eslint-plugin": "^8.56.1",
+    "@typescript-eslint/parser": "^8.56.1",
+    "eslint": "^10.0.2",
+    "eslint-config-prettier": "^10.1.8",
+    "prettier": "^3.8.1",
+    "typescript": "^5.9.3",
+    "vite": "^7.3.1"
+  }
+}
