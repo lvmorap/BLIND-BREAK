@@ -15,13 +15,19 @@ const ARENA_COLOR = '#c4a44a';
 const DANGER_COLOR_R = 204;
 const DANGER_COLOR_G = 34;
 const DANGER_COLOR_B = 0;
-const BG_COLOR = '#0a0a12';
+const BG_COLOR = '#0a0a1f';
 
 // Players
 const PLAYER_RADIUS = 20;
 const PLAYER_SPEED = 250;
 const P1_COLOR = '#00e5ff';
 const P2_COLOR = '#ff4466';
+
+// Shockwave
+const SHOCKWAVE_DURATION = 0.4;
+
+// Stars
+const STAR_COUNT = 120;
 
 // Dash
 const DASH_IMPULSE = 700;
@@ -82,6 +88,21 @@ interface ScoringZone {
   dirTimer: number;
   sizeTimer: number;
   large: boolean;
+}
+
+interface Shockwave {
+  x: number;
+  y: number;
+  timer: number;
+  maxTimer: number;
+}
+
+interface Star {
+  x: number;
+  y: number;
+  size: number;
+  twinkleSpeed: number;
+  phase: number;
 }
 
 // --- Vector helpers ---
@@ -145,6 +166,11 @@ export class SumoGame implements IGame {
   private quakeShakeTimer = 0;
   private quakeShakeOffset: Vec2 = v2(0, 0);
 
+  private shockwaves: Shockwave[] = [];
+  private collisionShakeTimer = 0;
+  private collisionShakeOffset: Vec2 = v2(0, 0);
+  private stars: Star[] = [];
+
   init(_canvas: HTMLCanvasElement, _ctx: CanvasRenderingContext2D): void {
     this.input = new InputManager();
     this.input.init();
@@ -157,6 +183,20 @@ export class SumoGame implements IGame {
     this.quakeWarning = false;
     this.quakeShakeTimer = 0;
     this.quakeShakeOffset = v2(0, 0);
+
+    this.shockwaves = [];
+    this.collisionShakeTimer = 0;
+    this.collisionShakeOffset = v2(0, 0);
+    this.stars = [];
+    for (let i = 0; i < STAR_COUNT; i++) {
+      this.stars.push({
+        x: Math.random() * W,
+        y: Math.random() * H,
+        size: 0.5 + Math.random() * 1.5,
+        twinkleSpeed: 1 + Math.random() * 3,
+        phase: Math.random() * Math.PI * 2,
+      });
+    }
 
     this.p1 = this.createFighter(-ARENA_RADIUS_INITIAL * 0.5, 0);
     this.p2 = this.createFighter(ARENA_RADIUS_INITIAL * 0.5, 0);
@@ -254,6 +294,26 @@ export class SumoGame implements IGame {
 
     // Earthquakes
     this.updateEarthquake(dt);
+
+    // Shockwaves
+    for (let i = this.shockwaves.length - 1; i >= 0; i--) {
+      const sw = this.shockwaves[i];
+      if (!sw) continue;
+      sw.timer -= dt;
+      if (sw.timer <= 0) {
+        this.shockwaves.splice(i, 1);
+      }
+    }
+
+    // Collision screen shake
+    if (this.collisionShakeTimer > 0) {
+      this.collisionShakeTimer -= dt;
+      const amp = 4 * (this.collisionShakeTimer / 0.15);
+      const t = this.elapsed * 1000;
+      this.collisionShakeOffset = v2(Math.sin(t * 0.07) * amp, Math.cos(t * 0.09) * amp);
+    } else {
+      this.collisionShakeOffset = v2(0, 0);
+    }
   }
 
   private applyMovement(
@@ -340,6 +400,18 @@ export class SumoGame implements IGame {
         this.p1.vel = v2Add(this.p1.vel, v2Scale(normal, -MIN_PUSH));
         this.p2.vel = v2Add(this.p2.vel, v2Scale(normal, MIN_PUSH));
       }
+
+      // Shockwave at midpoint
+      const mid = v2Scale(v2Add(this.p1.pos, this.p2.pos), 0.5);
+      this.shockwaves.push({
+        x: mid.x,
+        y: mid.y,
+        timer: SHOCKWAVE_DURATION,
+        maxTimer: SHOCKWAVE_DURATION,
+      });
+
+      // Collision screen shake
+      this.collisionShakeTimer = 0.15;
     }
   }
 
@@ -463,16 +535,18 @@ export class SumoGame implements IGame {
   // --- Rendering ---
 
   render(ctx: CanvasRenderingContext2D): void {
-    const ox = this.quakeShakeOffset.x;
-    const oy = this.quakeShakeOffset.y;
+    const ox = this.quakeShakeOffset.x + this.collisionShakeOffset.x;
+    const oy = this.quakeShakeOffset.y + this.collisionShakeOffset.y;
 
     ctx.save();
     ctx.translate(ox, oy);
 
     this.drawBackground(ctx);
+    this.drawSaturn(ctx);
     this.drawArena(ctx);
     this.drawDangerGlow(ctx);
     this.drawZone(ctx);
+    this.drawShockwaves(ctx);
     this.drawPlayer(ctx, this.p1, P1_COLOR);
     this.drawPlayer(ctx, this.p2, P2_COLOR);
 
@@ -487,18 +561,83 @@ export class SumoGame implements IGame {
   }
 
   private drawBackground(ctx: CanvasRenderingContext2D): void {
-    ctx.fillStyle = BG_COLOR;
+    // Deep space gradient
+    const bg = ctx.createLinearGradient(0, 0, W, H);
+    bg.addColorStop(0, BG_COLOR);
+    bg.addColorStop(1, '#0e0e2a');
+    ctx.fillStyle = bg;
     ctx.fillRect(-10, -10, W + 20, H + 20);
+
+    // Twinkling stars
+    for (const star of this.stars) {
+      const twinkle = 0.4 + 0.6 * Math.abs(Math.sin(this.elapsed * star.twinkleSpeed + star.phase));
+      ctx.globalAlpha = twinkle;
+      ctx.fillStyle = '#ffffff';
+      ctx.beginPath();
+      ctx.arc(star.x, star.y, star.size, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.globalAlpha = 1;
+  }
+
+  private drawSaturn(ctx: CanvasRenderingContext2D): void {
+    const sx = W * 0.82;
+    const sy = H * 0.75;
+    const rX = 220;
+    const rY = 160;
+
+    ctx.save();
+
+    // Saturn body gradient
+    const grad = ctx.createRadialGradient(sx - 30, sy - 30, 10, sx, sy, rX);
+    grad.addColorStop(0, '#e0b060');
+    grad.addColorStop(0.5, '#c8944a');
+    grad.addColorStop(1, '#7a5020');
+    ctx.beginPath();
+    ctx.ellipse(sx, sy, rX, rY, 0, 0, Math.PI * 2);
+    ctx.fillStyle = grad;
+    ctx.globalAlpha = 0.25;
+    ctx.fill();
+
+    // Ring band vertical offsets (fraction of rY) and opacity values for Saturn's rings
+    const ringAngles = [-0.2, -0.15, -0.1, -0.05, 0.0, 0.05, 0.1];
+    const ringAlphas = [0.08, 0.12, 0.15, 0.1, 0.14, 0.09, 0.06];
+    for (let i = 0; i < ringAngles.length; i++) {
+      const offset = ringAngles[i] ?? 0;
+      const alpha = ringAlphas[i] ?? 0.1;
+      const bandRx = rX + 40 + i * 18;
+      const bandRy = 30 + i * 6;
+      ctx.beginPath();
+      ctx.ellipse(sx, sy + offset * rY, bandRx, bandRy, -0.15, 0, Math.PI * 2);
+      ctx.strokeStyle = '#d4a850';
+      ctx.globalAlpha = alpha;
+      ctx.lineWidth = 3 + (i % 3);
+      ctx.stroke();
+    }
+
+    ctx.globalAlpha = 1;
+    ctx.restore();
   }
 
   private drawArena(ctx: CanvasRenderingContext2D): void {
     const r = this.arenaRadius;
 
-    // Gradient fill
+    // Outer glow ring
+    ctx.save();
+    ctx.shadowColor = '#ffd700';
+    ctx.shadowBlur = 20;
+    ctx.beginPath();
+    ctx.arc(CX, CY, r + 2, 0, Math.PI * 2);
+    ctx.strokeStyle = '#ffd700';
+    ctx.lineWidth = 3;
+    ctx.stroke();
+    ctx.restore();
+
+    // Textured radial gradient surface
     const grad = ctx.createRadialGradient(CX, CY, 0, CX, CY, r);
-    grad.addColorStop(0, '#d4b45a');
-    grad.addColorStop(0.7, ARENA_COLOR);
-    grad.addColorStop(1, '#8a7230');
+    grad.addColorStop(0, '#c4a44a');
+    grad.addColorStop(0.6, ARENA_COLOR);
+    grad.addColorStop(1, '#7a4a18');
 
     ctx.beginPath();
     ctx.arc(CX, CY, r, 0, Math.PI * 2);
@@ -515,8 +654,22 @@ export class SumoGame implements IGame {
     const r = this.arenaRadius;
     const outerR = r + 60;
 
+    // Danger level: 0 at full size, 1 at minimum size
+    const danger = Math.max(
+      0,
+      Math.min(
+        1,
+        1 - (this.arenaRadius - ARENA_RADIUS_FINAL) / (ARENA_RADIUS_INITIAL - ARENA_RADIUS_FINAL),
+      ),
+    );
+    const pulse = 0.5 + 0.5 * Math.sin(this.elapsed * (4 + danger * 8));
+    const intensity = 0.3 + danger * 0.7 * pulse;
+
     const grad = ctx.createRadialGradient(CX, CY, r, CX, CY, outerR);
-    grad.addColorStop(0, `rgba(${DANGER_COLOR_R}, ${DANGER_COLOR_G}, ${DANGER_COLOR_B}, 0.5)`);
+    grad.addColorStop(
+      0,
+      `rgba(${DANGER_COLOR_R}, ${DANGER_COLOR_G}, ${DANGER_COLOR_B}, ${intensity})`,
+    );
     grad.addColorStop(1, `rgba(${DANGER_COLOR_R}, ${DANGER_COLOR_G}, ${DANGER_COLOR_B}, 0)`);
 
     ctx.beginPath();
@@ -524,6 +677,17 @@ export class SumoGame implements IGame {
     ctx.arc(CX, CY, r, 0, Math.PI * 2, true);
     ctx.fillStyle = grad;
     ctx.fill();
+
+    // Inner danger overlay on arena edge
+    if (danger > 0.1) {
+      const innerGrad = ctx.createRadialGradient(CX, CY, r * 0.7, CX, CY, r);
+      innerGrad.addColorStop(0, 'rgba(204, 34, 0, 0)');
+      innerGrad.addColorStop(1, `rgba(204, 34, 0, ${danger * 0.3 * pulse})`);
+      ctx.beginPath();
+      ctx.arc(CX, CY, r, 0, Math.PI * 2);
+      ctx.fillStyle = innerGrad;
+      ctx.fill();
+    }
   }
 
   private drawZone(ctx: CanvasRenderingContext2D): void {
@@ -553,47 +717,120 @@ export class SumoGame implements IGame {
   private drawPlayer(ctx: CanvasRenderingContext2D, f: Fighter, color: string): void {
     const r = PLAYER_RADIUS;
     const jumping = f.jumpTimer > 0;
-    const drawR = jumping ? r * (1 + 0.3 * Math.sin(f.jumpTimer * 20)) : r;
+    const jumpProgress = jumping ? Math.sin((f.jumpTimer / JUMP_DURATION) * Math.PI) : 0;
 
-    // Player circle
+    // Facing angle for rotation
+    const angle = Math.atan2(f.facing.y, f.facing.x);
+
+    ctx.save();
+    ctx.translate(f.pos.x, f.pos.y);
+
+    // Jump shadow
+    if (jumping) {
+      const shadowScale = 1 - jumpProgress * 0.3;
+      ctx.save();
+      ctx.scale(shadowScale, shadowScale * 0.5);
+      ctx.beginPath();
+      ctx.arc(0, r * 0.5, r * 0.9, 0, Math.PI * 2);
+      ctx.fillStyle = 'rgba(0,0,0,0.3)';
+      ctx.fill();
+      ctx.restore();
+    }
+
+    // Float offset when jumping
+    const floatY = jumping ? -jumpProgress * 12 : 0;
+    ctx.translate(0, floatY);
+
+    // Rotate to facing direction (offset by -PI/2 so "up" on the body faces the direction)
+    ctx.rotate(angle + Math.PI / 2);
+
+    const bodyR = r * 0.75;
+    const skinTone = '#d4956a';
+
+    // --- Arms (ellipses extending to sides) ---
+    ctx.save();
+    // Left arm
+    ctx.save();
+    ctx.translate(-bodyR * 0.85, -bodyR * 0.1);
+    ctx.rotate(-0.3);
     ctx.beginPath();
-    ctx.arc(f.pos.x, f.pos.y, drawR, 0, Math.PI * 2);
-    ctx.fillStyle = jumping ? color + '99' : color;
+    ctx.ellipse(0, 0, bodyR * 0.55, bodyR * 0.3, 0, 0, Math.PI * 2);
+    ctx.fillStyle = skinTone;
     ctx.fill();
-    ctx.strokeStyle = '#ffffff44';
-    ctx.lineWidth = 2;
-    ctx.stroke();
-
-    // Direction indicator triangle
-    const tipDist = drawR + 8;
-    const tipX = f.pos.x + f.facing.x * tipDist;
-    const tipY = f.pos.y + f.facing.y * tipDist;
-    const perpX = -f.facing.y;
-    const perpY = f.facing.x;
-    const baseBack = 5;
-    const baseWidth = 5;
-
+    ctx.restore();
+    // Right arm
+    ctx.save();
+    ctx.translate(bodyR * 0.85, -bodyR * 0.1);
+    ctx.rotate(0.3);
     ctx.beginPath();
-    ctx.moveTo(tipX, tipY);
-    ctx.lineTo(
-      f.pos.x + f.facing.x * (tipDist - baseBack) + perpX * baseWidth,
-      f.pos.y + f.facing.y * (tipDist - baseBack) + perpY * baseWidth,
-    );
-    ctx.lineTo(
-      f.pos.x + f.facing.x * (tipDist - baseBack) - perpX * baseWidth,
-      f.pos.y + f.facing.y * (tipDist - baseBack) - perpY * baseWidth,
-    );
-    ctx.closePath();
-    ctx.fillStyle = '#ffffffcc';
+    ctx.ellipse(0, 0, bodyR * 0.55, bodyR * 0.3, 0, 0, Math.PI * 2);
+    ctx.fillStyle = skinTone;
+    ctx.fill();
+    ctx.restore();
+    ctx.restore();
+
+    // --- Body (main circle with shading) ---
+    const bodyGrad = ctx.createRadialGradient(-bodyR * 0.3, -bodyR * 0.3, bodyR * 0.1, 0, 0, bodyR);
+    bodyGrad.addColorStop(0, '#e8b080');
+    bodyGrad.addColorStop(0.7, skinTone);
+    bodyGrad.addColorStop(1, '#a06838');
+    ctx.beginPath();
+    ctx.arc(0, 0, bodyR, 0, Math.PI * 2);
+    ctx.fillStyle = bodyGrad;
     ctx.fill();
 
-    // Dash cooldown indicator (arc around player)
+    // --- Mawashi (belt) across body middle ---
+    ctx.beginPath();
+    ctx.rect(-bodyR * 0.85, -bodyR * 0.15, bodyR * 1.7, bodyR * 0.35);
+    ctx.fillStyle = color;
+    ctx.fill();
+
+    // --- Head (small circle at top/front of body) ---
+    const headR = bodyR * 0.45;
+    const headY = -bodyR * 0.75;
+    const headGrad = ctx.createRadialGradient(
+      -headR * 0.25,
+      headY - headR * 0.25,
+      headR * 0.1,
+      0,
+      headY,
+      headR,
+    );
+    headGrad.addColorStop(0, '#e8b080');
+    headGrad.addColorStop(1, '#b07848');
+    ctx.beginPath();
+    ctx.arc(0, headY, headR, 0, Math.PI * 2);
+    ctx.fillStyle = headGrad;
+    ctx.fill();
+
+    // Topknot (chonmage)
+    ctx.beginPath();
+    ctx.ellipse(0, headY - headR * 0.8, headR * 0.25, headR * 0.35, 0, 0, Math.PI * 2);
+    ctx.fillStyle = '#2a1a0a';
+    ctx.fill();
+
+    ctx.restore();
+
+    // Dash cooldown indicator (arc around player, drawn without rotation)
     if (f.dashCooldown > 0) {
       const frac = f.dashCooldown / DASH_COOLDOWN;
       ctx.beginPath();
-      ctx.arc(f.pos.x, f.pos.y, drawR + 4, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * frac);
+      ctx.arc(f.pos.x, f.pos.y + floatY, r + 4, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * frac);
       ctx.strokeStyle = '#ffffff66';
       ctx.lineWidth = 2;
+      ctx.stroke();
+    }
+  }
+
+  private drawShockwaves(ctx: CanvasRenderingContext2D): void {
+    for (const sw of this.shockwaves) {
+      const progress = 1 - sw.timer / sw.maxTimer;
+      const radius = 10 + progress * 60;
+      const alpha = 1 - progress;
+      ctx.beginPath();
+      ctx.arc(sw.x, sw.y, radius, 0, Math.PI * 2);
+      ctx.strokeStyle = `rgba(255, 255, 255, ${alpha * 0.8})`;
+      ctx.lineWidth = 3 * (1 - progress) + 1;
       ctx.stroke();
     }
   }
