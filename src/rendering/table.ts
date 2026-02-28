@@ -14,13 +14,13 @@ import {
 import { state } from '../core/state.ts';
 import { ctx, feltCanvas } from './canvas.ts';
 
-let starField: Array<{ x: number; y: number; size: number; brightness: number }> | null = null;
+let starfield: Array<{ x: number; y: number; size: number; brightness: number }> | null = null;
 
-function ensureStarField(): void {
-  if (starField) return;
-  starField = [];
+function ensureStarfield(): void {
+  if (starfield) return;
+  starfield = [];
   for (let i = 0; i < 300; i++) {
-    starField.push({
+    starfield.push({
       x: Math.random() * C.W,
       y: Math.random() * C.H,
       size: Math.random() * 1.5 + 0.3,
@@ -30,13 +30,13 @@ function ensureStarField(): void {
 }
 
 export function drawBrickWall(): void {
-  ensureStarField();
-  if (!starField) return;
+  ensureStarfield();
+  if (!starfield) return;
   ctx.fillStyle = '#020206';
   ctx.fillRect(0, 0, C.W, C.H);
 
   const t = performance.now() * 0.001;
-  for (const star of starField) {
+  for (const star of starfield) {
     const twinkle = star.brightness * (0.6 + 0.4 * Math.sin(t * 2 + star.x * 0.1 + star.y * 0.1));
     ctx.fillStyle = `rgba(200,210,255,${twinkle})`;
     ctx.beginPath();

@@ -5,16 +5,22 @@ import { getLightLevel } from '../core/physics.ts';
 import { ctx } from './canvas.ts';
 import { lightenColor, darkenColor } from '../utils/color.ts';
 
-/** Planet ring data: [hasRing, ringColor, ringAlpha] */
-const PLANET_RINGS: Array<[boolean, string, number]> = [
-  [false, '', 0], // Sol
-  [false, '', 0], // Mercury
-  [false, '', 0], // Venus
-  [false, '', 0], // Earth
-  [false, '', 0], // Mars
-  [false, '', 0], // Jupiter
-  [true, '#d4b896', 0.5], // Saturn
-  [true, '#88aacc', 0.3], // Uranus
+/** Planet ring rendering config */
+interface PlanetRing {
+  hasRing: boolean;
+  color: string;
+  alpha: number;
+}
+
+const PLANET_RINGS: PlanetRing[] = [
+  { hasRing: false, color: '', alpha: 0 }, // Sol
+  { hasRing: false, color: '', alpha: 0 }, // Mercury
+  { hasRing: false, color: '', alpha: 0 }, // Venus
+  { hasRing: false, color: '', alpha: 0 }, // Earth
+  { hasRing: false, color: '', alpha: 0 }, // Mars
+  { hasRing: false, color: '', alpha: 0 }, // Jupiter
+  { hasRing: true, color: '#d4b896', alpha: 0.5 }, // Saturn
+  { hasRing: true, color: '#88aacc', alpha: 0.3 }, // Uranus
 ];
 
 function drawSunBall(_b: Ball): void {
@@ -134,8 +140,8 @@ function drawPlanetBall(b: Ball): void {
 
   // Rings for Saturn and Uranus
   const ringData = PLANET_RINGS[b.id];
-  if (ringData && ringData[0]) {
-    ctx.strokeStyle = `rgba(${b.id === 6 ? '212,184,150' : '136,170,204'},${ringData[2]})`;
+  if (ringData && ringData.hasRing) {
+    ctx.strokeStyle = `rgba(${b.id === 6 ? '212,184,150' : '136,170,204'},${ringData.alpha})`;
     ctx.lineWidth = 2;
     ctx.beginPath();
     ctx.ellipse(0, 0, C.BALL_R + 5, C.BALL_R * 0.25, b.id === 7 ? 1.2 : 0.2, 0, Math.PI * 2);

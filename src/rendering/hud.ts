@@ -198,18 +198,22 @@ export function drawAlienHand(): void {
   ctx.save();
   ctx.translate(mx, my);
 
-  // Alien hand (3 fingers + thumb, green-tinted)
+  // Alien hand geometry: centered at cursor position
+  // Palm: ellipse 20×16px centered 8px below cursor
+  // 3 fingers: 6×14-16px ellipses extending upward, spaced 12px apart
+  // Each finger has a 7px-diameter bulbous tip
+  // Thumb: 5×10px ellipse offset left, rotated -0.6 rad
   ctx.fillStyle = 'rgba(80,200,120,0.7)';
   ctx.strokeStyle = 'rgba(60,160,90,0.8)';
   ctx.lineWidth = 1;
 
-  // Palm
+  // Palm (20×16 ellipse, cy offset +8)
   ctx.beginPath();
   ctx.ellipse(0, 8, 10, 8, 0, 0, Math.PI * 2);
   ctx.fill();
   ctx.stroke();
 
-  // Fingers (3 long alien fingers)
+  // 3 fingers at x={-6, 0, 6}, angled {-0.3, 0, 0.3} rad
   const fingers = [
     { x: -6, y: 0, angle: -0.3, len: 14 },
     { x: 0, y: -2, angle: 0, len: 16 },

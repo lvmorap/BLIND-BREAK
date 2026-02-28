@@ -84,6 +84,7 @@ export const BALL_NAMES: readonly string[] = [
   'Saturn',
   'Uranus',
 ];
+// Astronomical/astrological planet symbols for colorblind accessibility
 export const CB_SHAPES: readonly string[] = ['☀', '☿', '♀', '🜨', '♂', '♃', '♄', '♅'];
 
 export const POCKETS: readonly Pocket[] = [
