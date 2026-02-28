@@ -11,22 +11,22 @@ const COURT_X = (CANVAS_W - COURT_W) / 2;
 const COURT_Y = (CANVAS_H - COURT_H) / 2;
 
 const NET_W = 4;
-const NET_HEIGHT_RATIO = 0.65;
+const NET_HEIGHT_RATIO = 0.45;
 const NET_X = COURT_X + COURT_W / 2 - NET_W / 2;
 
-const PLAYER_W = 24;
-const PLAYER_H = 36;
-const PLAYER_SPEED = 300;
-const JUMP_VELOCITY = 500;
+const PLAYER_W = 32;
+const PLAYER_H = 48;
+const PLAYER_SPEED = 250;
+const JUMP_VELOCITY = 450;
 
 const BALL_RADIUS = 12;
 const BALL_RESTITUTION = 0.7;
 const BALL_FRICTION = 0.998;
 const HIT_RANGE = 50;
-const HIT_FORCE = 700;
+const HIT_FORCE = 600;
 const HIT_COOLDOWN = 0.3;
 
-const GRAVITY_STRENGTH = 900;
+const GRAVITY_STRENGTH = 700;
 const GRAVITY_INTERVAL = 5;
 const GRAVITY_WARNING_TIME = 1;
 

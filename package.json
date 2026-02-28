@@ -1,7 +1,7 @@
 {
-  "name": "blind-break",
+  "name": "nexari",
   "version": "1.0.0",
-  "description": "BLIND BREAK — Noir Billiards in the Dark. EA Game Jam 2025.",
+  "description": "NEXARI — 6 Game Tournament. EA Game Jam 2025.",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -14,7 +14,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/lvmorap/BLIND-BREAK.git"
+    "url": "git+https://github.com/lvmorap/NEXARI.git"
   },
   "keywords": [
     "game",
@@ -25,9 +25,9 @@
   "author": "",
   "license": "ISC",
   "bugs": {
-    "url": "https://github.com/lvmorap/BLIND-BREAK/issues"
+    "url": "https://github.com/lvmorap/NEXARI/issues"
   },
-  "homepage": "https://github.com/lvmorap/BLIND-BREAK#readme",
+  "homepage": "https://github.com/lvmorap/NEXARI#readme",
   "devDependencies": {
     "@typescript-eslint/eslint-plugin": "^8.56.1",
     "@typescript-eslint/parser": "^8.56.1",

@@ -410,11 +410,11 @@ export class GameManager {
     if (this.resultWinner === 1) {
       ctx.font = '700 48px Orbitron, sans-serif';
       ctx.fillStyle = '#00e5ff';
-      ctx.fillText('PLAYER 1 WINS!', w / 2, h / 2 - 20);
+      ctx.fillText('HUMAN WINS!', w / 2, h / 2 - 20);
     } else if (this.resultWinner === 2) {
       ctx.font = '700 48px Orbitron, sans-serif';
       ctx.fillStyle = '#ff4466';
-      ctx.fillText('PLAYER 2 WINS!', w / 2, h / 2 - 20);
+      ctx.fillText('ALIEN WINS!', w / 2, h / 2 - 20);
     } else {
       ctx.font = '700 48px Orbitron, sans-serif';
       ctx.fillStyle = '#e0d5c0';
