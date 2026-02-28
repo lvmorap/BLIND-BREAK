@@ -9,39 +9,21 @@ import {
   FELT_CX,
   FELT_CY,
   POCKETS,
-  LAMP_ZONES,
 } from './constants.ts';
 import { state, getCueBall } from './state.ts';
 import { playSound } from './audio.ts';
 import { spawnBallTrail, spawnPocketBurst, addScorePopup } from '../rendering/effects.ts';
 
 export function getLightLevel(x: number, y: number): number {
-  for (const lamp of LAMP_ZONES) {
-    const dx = (x - lamp.x) / lamp.rx;
-    const dy = (y - lamp.y) / lamp.ry;
-    if (dx * dx + dy * dy < 1) return 1.0;
+  const cue = state.balls[0];
+  if (!cue || !cue.alive) return 0;
+  const dx = x - cue.x;
+  const dy = y - cue.y;
+  const dist = Math.sqrt(dx * dx + dy * dy);
+  if (dist < C.CUE_LIGHT_R) {
+    return 1.0 - dist / C.CUE_LIGHT_R;
   }
-  for (const pk of POCKETS) {
-    const dx = x - pk.x;
-    const dy = y - pk.y;
-    if (dx * dx + dy * dy < 40 * 40) return 0.7;
-  }
-  let maxLight = 0;
-  for (const z of state.lightZones) {
-    const dx = x - z.x;
-    const dy = y - z.y;
-    const dist = Math.sqrt(dx * dx + dy * dy);
-    if (dist < z.radius) {
-      const roundAge = state.currentRound - z.createdAtRound;
-      let mult = 0;
-      if (roundAge === 0) mult = 1.0;
-      else if (roundAge === 1) mult = 0.5;
-      else if (roundAge === 2) mult = 0.2;
-      const l = (1 - dist / z.radius) * mult;
-      maxLight = Math.max(maxLight, l);
-    }
-  }
-  return maxLight;
+  return 0;
 }
 
 export function triggerShake(intensity: number, duration: number): void {
@@ -109,6 +91,7 @@ function sinkBall(ball: Ball): void {
     if (who === 'player') state.playerScore -= 1;
     else state.aiScore -= 1;
     state.endStats[who].scratches++;
+    state.cueScratchedThisTurn = true;
     addScorePopup(pocketX, pocketY, '-1 SCRATCH', '#ff0000', 28);
     triggerShake(8, 250);
     state.scratchFlashTimer = 3;
@@ -132,6 +115,7 @@ function sinkBall(ball: Ball): void {
   const color = ball.color;
   const size = 24;
   state.endStats[statKey].lit++;
+  state.ballPocketedThisTurn = true;
 
   if (state.currentTurn === 'PLAYER') state.playerScore += pts;
   else state.aiScore += pts;
@@ -174,23 +158,20 @@ export function updatePhysics(dt: number): void {
     if (spd > 0.5) {
       b.trail.push({ x: b.x, y: b.y, a: 0.25 });
       if (b.trail.length > 4) b.trail.shift();
-      const r = b.id === 0 ? C.LIGHT_CUE_R : C.LIGHT_OBJ_R;
-      const lastZ = b._lastLightZone;
-      if (!lastZ || Math.abs(b.x - lastZ.x) + Math.abs(b.y - lastZ.y) > 8) {
-        state.lightZones.push({
-          x: b.x,
-          y: b.y,
-          radius: r,
-          createdAtRound: state.currentRound,
-          intensity: C.DARKNESS_ALPHA,
-        });
-        b._lastLightZone = { x: b.x, y: b.y };
+      if (b.id === 0) {
+        const lastZ = b._lastLightZone;
+        if (!lastZ || Math.abs(b.x - lastZ.x) + Math.abs(b.y - lastZ.y) > 8) {
+          state.lightZones.push({
+            x: b.x,
+            y: b.y,
+            radius: C.TRAIL_LIGHT_R,
+            createdAtRound: state.currentRound,
+            intensity: C.DARKNESS_ALPHA,
+            createdAt: performance.now(),
+          });
+          b._lastLightZone = { x: b.x, y: b.y };
+        }
       }
-    }
-
-    if (b.id > 0 && getLightLevel(b.x, b.y) > 0.1) {
-      b.lastLitX = b.x;
-      b.lastLitY = b.y;
     }
 
     if (b.x - C.BALL_R < FELT_L) {
@@ -230,18 +211,6 @@ export function updatePhysics(dt: number): void {
 
     spawnBallTrail(b);
     updateSquash(b, realDt);
-
-    if (b.id > 0) {
-      const visAlpha = b.visAlpha ?? 1.0;
-      const targetAlpha = getLightLevel(b.x, b.y) > 0.1 ? 1.0 : 0.0;
-      const fadeInRate = dt / 0.2;
-      const fadeOutRate = dt / 0.4;
-      if (targetAlpha > visAlpha) {
-        b.visAlpha = Math.min(1, visAlpha + fadeInRate);
-      } else {
-        b.visAlpha = Math.max(0, visAlpha - fadeOutRate);
-      }
-    }
   }
 
   for (let i = 0; i < state.balls.length; i++) {
@@ -314,6 +283,8 @@ export function fireShot(angle: number, shotPower: number): void {
   cue.vx = Math.cos(angle) * vel;
   cue.vy = Math.sin(angle) * vel;
   state.turnPhase = 'ROLLING';
+  state.ballPocketedThisTurn = false;
+  state.cueScratchedThisTurn = false;
   playSound('CUE_STRIKE');
   if (shotPower > 0.7) triggerShake(4, 120);
 }
@@ -346,6 +317,7 @@ export function fireRecon(angle: number): void {
             radius: 25,
             createdAtRound: state.currentRound,
             intensity: 0.7,
+            createdAt: performance.now(),
           });
         }
       }

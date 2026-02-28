@@ -44,6 +44,10 @@ export const C: GameConstants = {
   RECON_SPREAD_DEG: 25,
   AI_GHOST_VARIANCE_DEG: 12,
   AI_PROBE_VARIANCE_DEG: 30,
+  CUE_LIGHT_R: 55,
+  TRAIL_DURATION: 3000,
+  TRAIL_LIGHT_R: 30,
+  MAX_DRAG_DIST: 200,
 } as const;
 
 export const TABLE_L: number = (C.W - C.TABLE_W) / 2;

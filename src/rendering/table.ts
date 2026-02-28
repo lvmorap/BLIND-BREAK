@@ -166,3 +166,38 @@ export function drawNeonSign(t: number): void {
 
   ctx.restore();
 }
+
+export function drawTableOutline(): void {
+  ctx.save();
+
+  ctx.strokeStyle = 'rgba(100,180,160,0.25)';
+  ctx.lineWidth = 1.5;
+  ctx.setLineDash([12, 6]);
+  ctx.strokeRect(FELT_L, FELT_T, FELT_W, FELT_H);
+  ctx.setLineDash([]);
+
+  for (const pk of POCKETS) {
+    ctx.strokeStyle = 'rgba(100,180,160,0.35)';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.arc(pk.x, pk.y, pk.r + 2, 0, Math.PI * 2);
+    ctx.stroke();
+
+    const pg = ctx.createRadialGradient(pk.x, pk.y, 0, pk.x, pk.y, pk.r + 6);
+    pg.addColorStop(0, 'rgba(100,180,160,0.08)');
+    pg.addColorStop(1, 'rgba(100,180,160,0)');
+    ctx.fillStyle = pg;
+    ctx.beginPath();
+    ctx.arc(pk.x, pk.y, pk.r + 6, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  ctx.strokeStyle = 'rgba(100,180,160,0.12)';
+  ctx.lineWidth = 0.5;
+  ctx.beginPath();
+  ctx.moveTo(FELT_CX, FELT_T);
+  ctx.lineTo(FELT_CX, FELT_T + FELT_H);
+  ctx.stroke();
+
+  ctx.restore();
+}

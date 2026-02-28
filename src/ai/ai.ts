@@ -1,6 +1,6 @@
 import { C, FELT_L, FELT_W, FELT_CX, FELT_CY, POCKETS } from '../core/constants.ts';
 import { state, getCueBall } from '../core/state.ts';
-import { getLightLevel, fireShot, fireRecon } from '../core/physics.ts';
+import { fireShot, fireRecon } from '../core/physics.ts';
 import { ctx } from '../rendering/canvas.ts';
 
 export function aiTakeTurn(): void {
@@ -28,8 +28,7 @@ export function aiThink(): void {
   for (let i = 1; i < state.balls.length; i++) {
     const b = state.balls[i];
     if (!b || !b.alive) continue;
-    const ll = getLightLevel(b.x, b.y);
-    if (ll > 0.3) {
+    {
       for (const pk of POCKETS) {
         const bpDx = pk.x - b.x;
         const bpDy = pk.y - b.y;
@@ -58,7 +57,7 @@ export function aiThink(): void {
             }
           }
         }
-        const score = ll * 100 - bpDist * 0.5 - cutAngle * 200 + (pathClear ? 500 : 0);
+        const score = 100 - bpDist * 0.5 - cutAngle * 200 + (pathClear ? 500 : 0);
         if (score > bestScore) {
           bestScore = score;
           bestBall = b;
@@ -124,10 +123,8 @@ export function drawAIThinking(): void {
   for (let i = 1; i < state.balls.length; i++) {
     const ball = state.balls[i];
     if (!ball || !ball.alive) continue;
-    if (getLightLevel(ball.x, ball.y) > 0.3) {
-      bestBallForScan = ball;
-      break;
-    }
+    bestBallForScan = ball;
+    break;
   }
   if (bestBallForScan) {
     const dirX = bestBallForScan.x - eyeX;

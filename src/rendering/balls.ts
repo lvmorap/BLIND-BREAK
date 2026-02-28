@@ -14,9 +14,6 @@ export function drawBall(b: Ball): void {
   if (b.id > 0 && b.visAlpha !== undefined && b.visAlpha < 0.02) return;
 
   ctx.save();
-  if (b.id > 0 && b.visAlpha !== undefined && b.visAlpha < 1) {
-    ctx.globalAlpha = b.visAlpha;
-  }
   ctx.translate(b.x, b.y);
   ctx.scale(b.squash.sx * scale, b.squash.sy * scale);
 
