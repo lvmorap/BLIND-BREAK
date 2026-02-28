@@ -6,6 +6,7 @@ export interface IGame {
   getWinner(): 1 | 2 | null;
   isFinished(): boolean;
   setDurationMultiplier?(mult: number): void;
+  setAIMode?(enabled: boolean): void;
 }
 
 export interface GameInfo {

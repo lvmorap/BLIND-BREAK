@@ -1,4 +1,4 @@
-import { InputManager } from '../../core/InputManager.ts';
+import { InputManager, type PlayerInput } from '../../core/InputManager.ts';
 import type { IGame } from '../IGame.ts';
 
 // Canvas
@@ -178,12 +178,18 @@ export class SumoGame implements IGame {
   private embers: Ember[] = [];
   private lavaBubbles: LavaBubble[] = [];
 
+  private aiEnabled = false;
+
   private lavaImg: HTMLImageElement | null = null;
   private lavaCracksImg: HTMLImageElement | null = null;
   private stoneImg: HTMLImageElement | null = null;
   private volcanoBgImg: HTMLImageElement | null = null;
   private lavaPattern: CanvasPattern | null = null;
   private stonePattern: CanvasPattern | null = null;
+
+  setAIMode(enabled: boolean): void {
+    this.aiEnabled = enabled;
+  }
 
   setDurationMultiplier(mult: number): void {
     this.durationMult = mult;
@@ -286,7 +292,12 @@ export class SumoGame implements IGame {
 
     // Input
     const inp1 = this.input.getPlayer1();
-    const inp2 = this.input.getPlayer2();
+    let inp2 = this.input.getPlayer2();
+
+    // AI override for player 2
+    if (this.aiEnabled) {
+      inp2 = this.computeAIInput();
+    }
 
     // Movement
     this.applyMovement(this.p1, inp1.up, inp1.down, inp1.left, inp1.right, dt);
@@ -555,6 +566,52 @@ export class SumoGame implements IGame {
       const t = this.elapsed * 1000;
       this.quakeShakeOffset = v2(Math.sin(t * 0.05) * amp, Math.cos(t * 0.07) * amp);
     }
+  }
+
+  private computeAIInput(): PlayerInput {
+    const ai = this.p2;
+    const opp = this.p1;
+    const center = v2(CX, CY);
+
+    // Desired direction accumulator (weighted)
+    let goal = v2(0, 0);
+
+    // 1. Move toward the scoring zone
+    const toZone = v2Sub(this.zone.pos, ai.pos);
+    const zoneDist = v2Len(toZone);
+    if (zoneDist > 1) {
+      goal = v2Add(goal, v2Scale(v2Norm(toZone), 1.0));
+    }
+
+    // 2. Stay away from the arena edge — push toward center when close
+    const toCenter = v2Sub(center, ai.pos);
+    const distFromCenter = v2Len(toCenter);
+    const edgeMargin = this.arenaRadius * 0.3;
+    if (distFromCenter > this.arenaRadius - edgeMargin && distFromCenter > 1) {
+      const urgency = (distFromCenter - (this.arenaRadius - edgeMargin)) / edgeMargin;
+      goal = v2Add(goal, v2Scale(v2Norm(toCenter), 2.0 * urgency));
+    }
+
+    const dir = v2Norm(goal);
+
+    // Convert direction to cardinal booleans (threshold at 0.3 to allow diagonals)
+    const inp: PlayerInput = {
+      up: dir.y < -0.3,
+      down: dir.y > 0.3,
+      left: dir.x < -0.3,
+      right: dir.x > 0.3,
+      action1: false,
+      action2: false,
+    };
+
+    // 3. Dash toward player 1 when close enough and dash is ready
+    const toOpp = v2Sub(opp.pos, ai.pos);
+    const oppDist = v2Len(toOpp);
+    if (oppDist < PLAYER_RADIUS * 6 && ai.dashCooldown <= 0) {
+      inp.action1 = true;
+    }
+
+    return inp;
   }
 
   private endGame(): void {

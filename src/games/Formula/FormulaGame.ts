@@ -48,8 +48,8 @@ const OBSTACLE_LIFETIME = 15;
 const OBSTACLE_SLOW_DURATION = 1.5;
 const OBSTACLE_SLOW_FACTOR = 0.2;
 
-const BG_COLOR = '#0a0a12';
-const TRACK_COLOR = '#333333';
+const BG_COLOR = '#060410';
+const TRACK_COLOR = '#2a1a0a';
 const P1_COLOR = '#00e5ff';
 const P2_COLOR = '#ff4466';
 
@@ -202,9 +202,27 @@ export class FormulaGame implements IGame {
   private nextPowerupDelay = 0;
   private startAngle = 0;
 
+  // Jupiter theming
+  private bgStars: Array<{ x: number; y: number; size: number; twinkle: number }> = [];
+  private bgComets: Array<{
+    x: number;
+    y: number;
+    vx: number;
+    vy: number;
+    size: number;
+    alpha: number;
+    tailLen: number;
+  }> = [];
+
+  private aiEnabled = false;
+
   // ── IGame lifecycle ──────────────────────────────────────────────────────
   setDurationMultiplier(mult: number): void {
     this.durationMult = mult;
+  }
+
+  setAIMode(enabled: boolean): void {
+    this.aiEnabled = enabled;
   }
 
   init(_canvas: HTMLCanvasElement, _ctx: CanvasRenderingContext2D): void {
@@ -253,6 +271,18 @@ export class FormulaGame implements IGame {
     this.winner = null;
     this.powerupSpawnTimer = 0;
     this.nextPowerupDelay = this.randomPowerupDelay();
+
+    // Init background stars
+    this.bgStars = [];
+    for (let i = 0; i < 80; i++) {
+      this.bgStars.push({
+        x: Math.random() * CW,
+        y: Math.random() * CH,
+        size: 0.5 + Math.random() * 1.5,
+        twinkle: Math.random() * Math.PI * 2,
+      });
+    }
+    this.bgComets = [];
   }
 
   update(dt: number): void {
@@ -269,7 +299,41 @@ export class FormulaGame implements IGame {
     }
 
     const p1Input = this.input.getPlayer1();
-    const p2Input = this.input.getPlayer2();
+    let p2Input = this.input.getPlayer2();
+
+    if (this.aiEnabled) {
+      const car = this.cars[1];
+      // Find the closest track parameter t for the AI car
+      let bestT = 0;
+      let bestDist = Infinity;
+      for (let i = 0; i < TRACK_POINTS; i++) {
+        const t = (i / TRACK_POINTS) * Math.PI * 2;
+        const pt = trackCenterPoint(t);
+        const d = dist(car.x, car.y, pt.x, pt.y);
+        if (d < bestDist) {
+          bestDist = d;
+          bestT = t;
+        }
+      }
+      // Look ahead on the track center line
+      const lookAhead = bestT + 0.3;
+      const target = trackCenterPoint(lookAhead);
+      const targetAngle = Math.atan2(target.y - car.y, target.x - car.x);
+      // Normalize angle difference to [-PI, PI]
+      let angleDiff = targetAngle - car.angle;
+      while (angleDiff > Math.PI) angleDiff -= Math.PI * 2;
+      while (angleDiff < -Math.PI) angleDiff += Math.PI * 2;
+      const steerThreshold = 0.05;
+      p2Input = {
+        up: true,
+        down: false,
+        left: angleDiff < -steerThreshold,
+        right: angleDiff > steerThreshold,
+        action1: car.turboCooldown <= 0,
+        action2: false,
+      };
+    }
+
     this.updateCar(0, p1Input, dt);
     this.updateCar(1, p2Input, dt);
 
@@ -286,9 +350,26 @@ export class FormulaGame implements IGame {
   }
 
   render(ctx: CanvasRenderingContext2D): void {
-    // Background
+    // Deep space background
     ctx.fillStyle = BG_COLOR;
     ctx.fillRect(0, 0, CW, CH);
+
+    // Background stars
+    for (const star of this.bgStars) {
+      star.twinkle += 0.02;
+      const alpha = 0.3 + 0.4 * Math.sin(star.twinkle);
+      ctx.fillStyle = `rgba(200, 210, 255, ${alpha})`;
+      ctx.beginPath();
+      ctx.arc(star.x, star.y, star.size, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    // Background comets
+    this.updateBgComets();
+    this.renderBgComets(ctx);
+
+    // Jupiter in center (small)
+    this.renderJupiter(ctx);
 
     this.renderTrack(ctx);
     this.renderStartLine(ctx);
@@ -580,6 +661,149 @@ export class FormulaGame implements IGame {
     return POWERUP_SPAWN_MIN + Math.random() * (POWERUP_SPAWN_MAX - POWERUP_SPAWN_MIN);
   }
 
+  // ── Jupiter Theming ───────────────────────────────────────────────────
+  private updateBgComets(): void {
+    // Spawn comets occasionally
+    if (Math.random() < 0.005 && this.bgComets.length < 3) {
+      const side = Math.floor(Math.random() * 4);
+      let cx: number, cy: number, cvx: number, cvy: number;
+      if (side === 0) {
+        cx = -10;
+        cy = Math.random() * CH;
+        cvx = 1 + Math.random() * 2;
+        cvy = (Math.random() - 0.5) * 1.5;
+      } else if (side === 1) {
+        cx = CW + 10;
+        cy = Math.random() * CH;
+        cvx = -(1 + Math.random() * 2);
+        cvy = (Math.random() - 0.5) * 1.5;
+      } else if (side === 2) {
+        cx = Math.random() * CW;
+        cy = -10;
+        cvx = (Math.random() - 0.5) * 1.5;
+        cvy = 1 + Math.random() * 2;
+      } else {
+        cx = Math.random() * CW;
+        cy = CH + 10;
+        cvx = (Math.random() - 0.5) * 1.5;
+        cvy = -(1 + Math.random() * 2);
+      }
+      this.bgComets.push({
+        x: cx,
+        y: cy,
+        vx: cvx,
+        vy: cvy,
+        size: 1 + Math.random() * 1.5,
+        alpha: 0.3 + Math.random() * 0.4,
+        tailLen: 20 + Math.random() * 40,
+      });
+    }
+    for (let i = this.bgComets.length - 1; i >= 0; i--) {
+      const cm = this.bgComets[i];
+      if (!cm) continue;
+      cm.x += cm.vx;
+      cm.y += cm.vy;
+      if (cm.x < -60 || cm.x > CW + 60 || cm.y < -60 || cm.y > CH + 60) {
+        this.bgComets.splice(i, 1);
+      }
+    }
+  }
+
+  private renderBgComets(ctx: CanvasRenderingContext2D): void {
+    for (const comet of this.bgComets) {
+      ctx.save();
+      ctx.globalAlpha = comet.alpha;
+      const tailAngle = Math.atan2(-comet.vy, -comet.vx);
+      const tailEndX = comet.x + Math.cos(tailAngle) * comet.tailLen;
+      const tailEndY = comet.y + Math.sin(tailAngle) * comet.tailLen;
+      const tg = ctx.createLinearGradient(comet.x, comet.y, tailEndX, tailEndY);
+      tg.addColorStop(0, 'rgba(255, 220, 180, 0.6)');
+      tg.addColorStop(0.3, 'rgba(255, 180, 120, 0.3)');
+      tg.addColorStop(1, 'rgba(200, 140, 80, 0)');
+      ctx.strokeStyle = tg;
+      ctx.lineWidth = comet.size * 0.8;
+      ctx.beginPath();
+      ctx.moveTo(comet.x, comet.y);
+      ctx.lineTo(tailEndX, tailEndY);
+      ctx.stroke();
+      ctx.fillStyle = '#ffe8cc';
+      ctx.shadowColor = '#ffaa66';
+      ctx.shadowBlur = 6;
+      ctx.beginPath();
+      ctx.arc(comet.x, comet.y, comet.size, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.shadowBlur = 0;
+      ctx.restore();
+    }
+  }
+
+  private renderJupiter(ctx: CanvasRenderingContext2D): void {
+    const jx = CX;
+    const jy = CY;
+    const jr = 55;
+
+    ctx.save();
+
+    // Jupiter body — warm orange/brown planet
+    const jupGrad = ctx.createRadialGradient(jx - 10, jy - 10, 5, jx, jy, jr);
+    jupGrad.addColorStop(0, '#e8c070');
+    jupGrad.addColorStop(0.3, '#c4884a');
+    jupGrad.addColorStop(0.6, '#a06030');
+    jupGrad.addColorStop(0.85, '#7a4020');
+    jupGrad.addColorStop(1, '#4a2510');
+    ctx.fillStyle = jupGrad;
+    ctx.beginPath();
+    ctx.arc(jx, jy, jr, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Jupiter bands — horizontal stripes
+    ctx.globalAlpha = 0.3;
+    const bandColors = ['#d4a060', '#8a5030', '#c08848', '#6a3820', '#b88040'];
+    for (let i = 0; i < bandColors.length; i++) {
+      const bandY = jy - jr + ((2 * jr) / (bandColors.length + 1)) * (i + 1);
+      const bandH = 6 + (i % 2) * 4;
+      ctx.fillStyle = bandColors[i] ?? '#a06030';
+      ctx.beginPath();
+      // Clip to circle
+      const halfW = Math.sqrt(Math.max(0, jr * jr - (bandY - jy) * (bandY - jy)));
+      ctx.fillRect(jx - halfW, bandY - bandH / 2, halfW * 2, bandH);
+    }
+    ctx.globalAlpha = 1;
+
+    // Great Red Spot
+    ctx.fillStyle = 'rgba(180, 60, 30, 0.4)';
+    ctx.beginPath();
+    ctx.ellipse(jx + 15, jy + 10, 12, 8, 0.2, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Atmosphere glow
+    ctx.shadowColor = '#cc8844';
+    ctx.shadowBlur = 25;
+    ctx.strokeStyle = 'rgba(200, 140, 80, 0.15)';
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.arc(jx, jy, jr + 4, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.shadowBlur = 0;
+
+    // Ring glow around Jupiter (thin ring)
+    ctx.globalAlpha = 0.2;
+    ctx.strokeStyle = '#ffcc88';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.ellipse(jx, jy, jr + 18, jr * 0.25, -0.15, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.globalAlpha = 0.12;
+    ctx.strokeStyle = '#ffddaa';
+    ctx.lineWidth = 4;
+    ctx.beginPath();
+    ctx.ellipse(jx, jy, jr + 26, jr * 0.3, -0.15, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.globalAlpha = 1;
+
+    ctx.restore();
+  }
+
   // ── Rendering ──────────────────────────────────────────────────────────
   private renderTrack(ctx: CanvasRenderingContext2D): void {
     // Outer fill
@@ -615,14 +839,18 @@ export class FormulaGame implements IGame {
       else ctx.lineTo(p.x, p.y);
     }
     ctx.closePath();
-    ctx.strokeStyle = '#ffffff';
-    ctx.lineWidth = 3;
+    // Glowing ring edge (Jupiter rings style)
+    ctx.shadowColor = '#ffaa44';
+    ctx.shadowBlur = 8;
+    ctx.strokeStyle = '#cc8833';
+    ctx.lineWidth = 2;
     ctx.stroke();
+    ctx.shadowBlur = 0;
 
-    // Kerb pattern (red/white dashes)
+    // Kerb pattern (amber/gold dashes)
     ctx.setLineDash([8, 8]);
-    ctx.strokeStyle = '#cc2222';
-    ctx.lineWidth = 4;
+    ctx.strokeStyle = '#ffcc44';
+    ctx.lineWidth = 3;
     ctx.stroke();
     ctx.setLineDash([]);
   }
@@ -810,7 +1038,7 @@ export class FormulaGame implements IGame {
   private renderPlayerHUD(ctx: CanvasRenderingContext2D, idx: 0 | 1, baseX: number): void {
     const car = this.cars[idx];
     const color = idx === 0 ? P1_COLOR : P2_COLOR;
-    const label = idx === 0 ? 'P1' : 'P2';
+    const label = idx === 0 ? 'HUMAN' : 'ALIEN';
 
     ctx.textAlign = 'left';
     ctx.font = 'bold 16px monospace';

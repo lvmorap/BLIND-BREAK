@@ -80,7 +80,8 @@ export function setupInput(): void {
       state.mouseY >= 15 &&
       state.mouseY <= 45
     ) {
-      state.reconMode = !state.reconMode;
+      // Auto-activate supernova immediately
+      fireRecon(0);
       return;
     }
 

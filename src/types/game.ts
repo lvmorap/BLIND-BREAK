@@ -1,5 +1,5 @@
 /**
- * Game Type Definitions for BLIND BREAK
+ * Game Type Definitions for NEXARI
  * Comprehensive TypeScript interfaces and types for the pool game with darkness mechanics
  */
 

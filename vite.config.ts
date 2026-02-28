@@ -1,7 +1,7 @@
 import { defineConfig } from 'vite';
 
 export default defineConfig({
-  base: '/BLIND-BREAK/',
+  base: '/NEXARI/',
   build: {
     outDir: 'dist',
     emptyOutDir: true,
