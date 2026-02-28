@@ -68,11 +68,7 @@ export function setupInput(): void {
       return;
     }
 
-    if (
-      state.gameState !== 'PLAYING' ||
-      !isHumanTurn() ||
-      state.turnPhase !== 'AIM'
-    ) {
+    if (state.gameState !== 'PLAYING' || !isHumanTurn() || state.turnPhase !== 'AIM') {
       return;
     }
 
@@ -112,11 +108,7 @@ export function setupInput(): void {
     state.parallaxTargetY = (state.mouseY - C.H / 2) * 0.008;
     state.parallaxTargetX = Math.max(-6, Math.min(6, state.parallaxTargetX));
     state.parallaxTargetY = Math.max(-6, Math.min(6, state.parallaxTargetY));
-    if (
-      state.gameState === 'PLAYING' &&
-      state.turnPhase === 'AIM' &&
-      isHumanTurn()
-    ) {
+    if (state.gameState === 'PLAYING' && state.turnPhase === 'AIM' && isHumanTurn()) {
       if (state.mouseX >= 15 && state.mouseX <= 95 && state.mouseY >= 15 && state.mouseY <= 45) {
         canvas.style.cursor = 'pointer';
       } else {

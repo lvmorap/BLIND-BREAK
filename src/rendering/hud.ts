@@ -115,7 +115,6 @@ export function drawAimLine(): void {
       hitWallFound = true;
       break;
     }
-
   }
 
   ctx.lineTo(endX, endY);
