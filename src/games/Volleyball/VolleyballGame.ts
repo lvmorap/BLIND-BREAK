@@ -109,6 +109,7 @@ export class VolleyballGame implements IGame {
   private scoreP2 = 0;
   private timer = GAME_DURATION;
   private finished = false;
+  private elapsed = 0;
 
   private gravity: GravityDir = 'DOWN';
   private nextGravity: GravityDir = 'UP';
@@ -137,6 +138,7 @@ export class VolleyballGame implements IGame {
   }
 
   update(dt: number): void {
+    this.elapsed += dt;
     if (this.finished) {
       this.input.update();
       return;
@@ -783,7 +785,7 @@ export class VolleyballGame implements IGame {
     ctx.save();
     const cx = CANVAS_W / 2;
     const cy = CANVAS_H / 2;
-    const pulse = 0.6 + 0.4 * Math.sin(Date.now() * 0.01);
+    const pulse = 0.6 + 0.4 * Math.sin(this.elapsed * 10);
 
     ctx.globalAlpha = pulse * 0.7;
     ctx.fillStyle = '#ffaa00';

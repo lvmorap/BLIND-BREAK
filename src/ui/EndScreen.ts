@@ -12,11 +12,16 @@ export class EndScreen {
   private p1Score: number;
   private p2Score: number;
   private rounds: RoundResult[];
+  private elapsed: number = 0;
 
   constructor(p1Score: number, p2Score: number, rounds: RoundResult[]) {
     this.p1Score = p1Score;
     this.p2Score = p2Score;
     this.rounds = rounds;
+  }
+
+  update(dt: number): void {
+    this.elapsed += dt;
   }
 
   render(ctx: CanvasRenderingContext2D): void {
@@ -103,7 +108,7 @@ export class EndScreen {
     const promptY = startY + this.rounds.length * lineHeight + 50;
     ctx.font = '600 22px Rajdhani, sans-serif';
     ctx.fillStyle = TEXT_COLOR;
-    ctx.globalAlpha = 0.6 + Math.sin(Date.now() / 500) * 0.4;
+    ctx.globalAlpha = 0.6 + Math.sin(this.elapsed * 2) * 0.4;
     ctx.fillText('PRESS ANY KEY TO PLAY AGAIN', w / 2, promptY);
     ctx.globalAlpha = 1;
   }

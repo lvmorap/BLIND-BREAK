@@ -208,7 +208,7 @@ export class GameManager {
         this.updateRoundResult(dt);
         break;
       case 'TOURNAMENT_END':
-        this.updateTournamentEnd();
+        this.updateTournamentEnd(dt);
         break;
     }
 
@@ -286,7 +286,8 @@ export class GameManager {
     }
   }
 
-  private updateTournamentEnd(): void {
+  private updateTournamentEnd(dt: number): void {
+    this.endScreen?.update(dt);
     const p1 = this.inputManager.getPlayer1();
     const p2 = this.inputManager.getPlayer2();
     if (p1.action1 || p1.action2 || p2.action1 || p2.action2) {

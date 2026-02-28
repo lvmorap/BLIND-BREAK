@@ -39,6 +39,7 @@ const POWERUP_SPAWN_MAX = 8;
 const POWERUP_MAX = 3;
 const POWERUP_SIZE = 20;
 const POWERUP_COLLECT_DIST = 18;
+const MAX_POWERUP_SPAWN_ATTEMPTS = 20;
 
 const MIRROR_DURATION = 5;
 const SPEED_BOOST_DURATION = 3;
@@ -444,7 +445,7 @@ export class FormulaGame implements IGame {
 
   private spawnPowerup(): void {
     // Place on track at random position
-    for (let attempt = 0; attempt < 20; attempt++) {
+    for (let attempt = 0; attempt < MAX_POWERUP_SPAWN_ATTEMPTS; attempt++) {
       const t = Math.random() * Math.PI * 2;
       const pt = trackCenterPoint(t);
       // Slight random offset from center

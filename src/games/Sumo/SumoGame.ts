@@ -133,6 +133,7 @@ export class SumoGame implements IGame {
   private timer = GAME_DURATION;
   private finished = false;
   private winner: 1 | 2 | null = null;
+  private elapsed = 0;
 
   private arenaRadius = ARENA_RADIUS_INITIAL;
   private p1!: Fighter;
@@ -193,6 +194,7 @@ export class SumoGame implements IGame {
   update(dt: number): void {
     if (this.finished) return;
 
+    this.elapsed += dt;
     this.input.update();
 
     // Timer
@@ -444,10 +446,8 @@ export class SumoGame implements IGame {
     if (this.quakeShakeTimer > 0) {
       this.quakeShakeTimer -= dt;
       const amp = 2 * (this.quakeShakeTimer / 0.3);
-      this.quakeShakeOffset = v2(
-        Math.sin(Date.now() * 0.05) * amp,
-        Math.cos(Date.now() * 0.07) * amp,
-      );
+      const t = this.elapsed * 1000;
+      this.quakeShakeOffset = v2(Math.sin(t * 0.05) * amp, Math.cos(t * 0.07) * amp);
     }
   }
 
@@ -528,7 +528,7 @@ export class SumoGame implements IGame {
 
   private drawZone(ctx: CanvasRenderingContext2D): void {
     const z = this.zone;
-    const pulse = 1 + Math.sin(Date.now() * 0.006) * 0.1;
+    const pulse = 1 + Math.sin(this.elapsed * 6) * 0.1;
     const r = z.radius * pulse;
 
     // Glow
@@ -629,7 +629,7 @@ export class SumoGame implements IGame {
 
   private drawEarthquakeWarning(ctx: CanvasRenderingContext2D): void {
     // Red border flash
-    const alpha = 0.3 + 0.3 * Math.sin(Date.now() * 0.02);
+    const alpha = 0.3 + 0.3 * Math.sin(this.elapsed * 20);
     ctx.save();
     ctx.strokeStyle = `rgba(255, 40, 40, ${alpha})`;
     ctx.lineWidth = 6;
@@ -639,7 +639,7 @@ export class SumoGame implements IGame {
     ctx.font = 'bold 24px Orbitron, monospace';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'bottom';
-    ctx.fillStyle = `rgba(255, 80, 80, ${0.6 + 0.4 * Math.sin(Date.now() * 0.015)})`;
+    ctx.fillStyle = `rgba(255, 80, 80, ${0.6 + 0.4 * Math.sin(this.elapsed * 15)})`;
     ctx.fillText('⚠ EARTHQUAKE', CX, H - 20);
 
     ctx.restore();
