@@ -189,7 +189,7 @@ The game alternates between player and opponent:
 
 ### 1. Aiming Phase
 
-You position and aim your shot. A 5-second turn timer applies.
+You position and aim your shot. A 5-second turn timer counts down — if time runs out before you shoot, the game auto-fires a random weak shot for you. Don't hesitate too long.
 
 ### 2. Rolling Phase
 
