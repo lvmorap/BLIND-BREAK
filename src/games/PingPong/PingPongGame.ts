@@ -9,6 +9,7 @@ const PADDLE_W = 15;
 const PADDLE_H = 80;
 const PADDLE_SPEED = 400;
 const PADDLE_R = 6;
+const PADDLE_MARGIN = 20;
 
 const BALL_RADIUS = 8;
 const BALL_INITIAL_SPEED = 350;
@@ -58,27 +59,6 @@ function clamp(v: number, min: number, max: number): number {
   return v < min ? min : v > max ? max : v;
 }
 
-function roundRect(
-  ctx: CanvasRenderingContext2D,
-  x: number,
-  y: number,
-  w: number,
-  h: number,
-  r: number,
-): void {
-  ctx.beginPath();
-  ctx.moveTo(x + r, y);
-  ctx.lineTo(x + w - r, y);
-  ctx.arcTo(x + w, y, x + w, y + r, r);
-  ctx.lineTo(x + w, y + h - r);
-  ctx.arcTo(x + w, y + h, x + w - r, y + h, r);
-  ctx.lineTo(x + r, y + h);
-  ctx.arcTo(x, y + h, x, y + h - r, r);
-  ctx.lineTo(x, y + r);
-  ctx.arcTo(x, y, x + r, y, r);
-  ctx.closePath();
-}
-
 // ── Game ───────────────────────────────────────────────────────────────────
 export class PingPongGame implements IGame {
   private input: InputManager = new InputManager();
@@ -120,10 +100,10 @@ export class PingPongGame implements IGame {
       });
     }
 
-    this.p1.x = 20;
+    this.p1.x = PADDLE_MARGIN;
     this.p1.y = (H - PADDLE_H) / 2;
 
-    this.p2.x = W - 20 - PADDLE_W;
+    this.p2.x = W - PADDLE_MARGIN - PADDLE_W;
     this.p2.y = (H - PADDLE_H) / 2;
 
     this.launchBall(Math.random() < 0.5 ? 1 : -1);
@@ -161,7 +141,7 @@ export class PingPongGame implements IGame {
 
     if (p1In.left) this.p1.x -= PADDLE_SPEED * dt;
     if (p1In.right) this.p1.x += PADDLE_SPEED * dt;
-    this.p1.x = clamp(this.p1.x, 20, W / 2 - NET_W / 2 - PADDLE_W);
+    this.p1.x = clamp(this.p1.x, PADDLE_MARGIN, W / 2 - NET_W / 2 - PADDLE_W);
 
     if (p2In.up) this.p2.y -= PADDLE_SPEED * dt;
     if (p2In.down) this.p2.y += PADDLE_SPEED * dt;
@@ -169,7 +149,7 @@ export class PingPongGame implements IGame {
 
     if (p2In.left) this.p2.x -= PADDLE_SPEED * dt;
     if (p2In.right) this.p2.x += PADDLE_SPEED * dt;
-    this.p2.x = clamp(this.p2.x, W / 2 + NET_W / 2, W - 20 - PADDLE_W);
+    this.p2.x = clamp(this.p2.x, W / 2 + NET_W / 2, W - PADDLE_MARGIN - PADDLE_W);
 
     // ── Ball trail ───────────────────────────────────────────────────────
     this.trail.push({ x: this.ball.x, y: this.ball.y });
@@ -362,7 +342,8 @@ export class PingPongGame implements IGame {
     ctx.shadowColor = color;
     ctx.shadowBlur = 15;
     ctx.fillStyle = color;
-    roundRect(ctx, paddle.x, paddle.y, paddle.w, paddle.h, PADDLE_R);
+    ctx.beginPath();
+    ctx.roundRect(paddle.x, paddle.y, paddle.w, paddle.h, PADDLE_R);
     ctx.fill();
     ctx.restore();
   }
