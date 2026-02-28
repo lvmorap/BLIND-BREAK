@@ -1,6 +1,8 @@
 class AudioManager {
   private ctx: AudioContext | null = null;
   private noiseBuffer: AudioBuffer | null = null;
+  private musicNodes: OscillatorNode[] = [];
+  private musicGains: GainNode[] = [];
 
   private ensureContext(): AudioContext | null {
     if (this.ctx) return this.ctx;
@@ -140,6 +142,133 @@ class AudioManager {
     gain.connect(ctx.destination);
     osc.start(ctx.currentTime + 0.08);
     osc.stop(ctx.currentTime + 0.18);
+  }
+
+  playGameMusic(gameId: string): void {
+    this.stopGameMusic();
+    try {
+      const ctx = this.ensureContext();
+      if (!ctx) return;
+      const now = ctx.currentTime;
+      const dur = 120;
+
+      const master = ctx.createGain();
+      master.gain.value = 0.05;
+      master.connect(ctx.destination);
+      this.musicGains.push(master);
+
+      const makeOsc = (type: OscillatorType, freq: number, vol: number): void => {
+        const o = ctx.createOscillator();
+        o.type = type;
+        o.frequency.value = freq;
+        const g = ctx.createGain();
+        g.gain.value = vol;
+        o.connect(g);
+        g.connect(master);
+        o.start(now);
+        o.stop(now + dur);
+        this.musicNodes.push(o);
+        this.musicGains.push(g);
+      };
+
+      const makeLfo = (freq: number, depth: number, target: AudioParam): void => {
+        const l = ctx.createOscillator();
+        l.type = 'sine';
+        l.frequency.value = freq;
+        const g = ctx.createGain();
+        g.gain.value = depth;
+        l.connect(g);
+        g.connect(target);
+        l.start(now);
+        l.stop(now + dur);
+        this.musicNodes.push(l);
+        this.musicGains.push(g);
+      };
+
+      if (gameId === 'blindbreak') {
+        makeOsc('sine', 55, 0.7);
+        makeOsc('sine', 57, 0.5);
+        makeLfo(0.3, 0.03, master.gain);
+      } else if (gameId === 'pingpong') {
+        makeOsc('square', 110, 0.4);
+        makeOsc('sawtooth', 220, 0.2);
+        makeLfo(140 / 60, 0.04, master.gain);
+      } else if (gameId === 'soccer') {
+        makeOsc('triangle', 82, 0.5);
+        makeOsc('sine', 165, 0.3);
+        makeLfo(1.5, 0.03, master.gain);
+      } else if (gameId === 'sumo') {
+        makeOsc('sawtooth', 55, 0.6);
+        makeOsc('square', 82, 0.3);
+        makeLfo(2, 0.04, master.gain);
+      } else if (gameId === 'formula') {
+        makeOsc('sawtooth', 110, 0.4);
+        makeOsc('square', 220, 0.2);
+        makeLfo(160 / 60, 0.04, master.gain);
+      } else if (gameId === 'volleyball') {
+        makeOsc('sine', 220, 0.5);
+        makeOsc('sine', 223, 0.5);
+        makeLfo(0.15, 0.02, master.gain);
+      }
+    } catch {
+      /* silent */
+    }
+  }
+
+  stopGameMusic(): void {
+    try {
+      for (const node of this.musicNodes) {
+        try {
+          node.stop();
+        } catch {
+          /* already stopped */
+        }
+        node.disconnect();
+      }
+      for (const gain of this.musicGains) {
+        gain.disconnect();
+      }
+    } catch {
+      /* silent */
+    }
+    this.musicNodes = [];
+    this.musicGains = [];
+  }
+
+  playSFX(type: string): void {
+    try {
+      if (type === 'score') {
+        this.playScore();
+      } else if (type === 'countdown') {
+        this.playCountdown();
+      } else if (type === 'hit') {
+        this.playHit();
+      } else if (type === 'whoosh') {
+        this.playWhoosh();
+      }
+    } catch {
+      /* silent */
+    }
+  }
+
+  private playWhoosh(): void {
+    const ctx = this.ensureContext();
+    if (!ctx || !this.noiseBuffer) return;
+    const source = ctx.createBufferSource();
+    source.buffer = this.noiseBuffer;
+    const filter = ctx.createBiquadFilter();
+    filter.type = 'bandpass';
+    filter.frequency.setValueAtTime(1000, ctx.currentTime);
+    filter.frequency.exponentialRampToValueAtTime(4000, ctx.currentTime + 0.15);
+    filter.Q.value = 2;
+    const gain = ctx.createGain();
+    gain.gain.setValueAtTime(0.3, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.2);
+    source.connect(filter);
+    filter.connect(gain);
+    gain.connect(ctx.destination);
+    source.start();
+    source.stop(ctx.currentTime + 0.2);
   }
 }
 

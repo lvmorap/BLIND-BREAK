@@ -62,6 +62,7 @@ export class GameManager {
   private resultParticlesFired: boolean = false;
   private shakeOffset: { ox: number; oy: number } = { ox: 0, oy: 0 };
   private lastDt: number = 0;
+  private helpOpen: boolean = false;
 
   constructor(canvas: HTMLCanvasElement, ctx: CanvasRenderingContext2D, registry: GameInfo[]) {
     this.canvas = canvas;
@@ -174,11 +175,13 @@ export class GameManager {
       this.currentGame.setDurationMultiplier?.(0.5);
     }
     this.currentGame.init(this.canvas, this.ctx);
+    audioManager.playGameMusic(info.id);
     audioManager.playWhistle();
   }
 
   private beginResult(): void {
     this.state = 'ROUND_RESULT';
+    audioManager.stopGameMusic();
     this.resultTimer = 0;
     this.resultWinner = this.currentGame?.getWinner() ?? null;
 
@@ -225,28 +228,32 @@ export class GameManager {
 
   update(dt: number): void {
     this.lastDt = dt;
-    switch (this.state) {
-      case 'INTRO':
-        this.updateIntro(dt);
-        break;
-      case 'MENU':
-        this.updateMenu(dt);
-        break;
-      case 'ROUND_INTRO':
-        this.updateRoundIntro(dt);
-        break;
-      case 'COUNTDOWN':
-        this.updateCountdown(dt);
-        break;
-      case 'PLAYING':
-        this.updatePlaying(dt);
-        break;
-      case 'ROUND_RESULT':
-        this.updateRoundResult(dt);
-        break;
-      case 'TOURNAMENT_END':
-        this.updateTournamentEnd(dt);
-        break;
+    this.updateHelpToggle();
+
+    if (!this.helpOpen) {
+      switch (this.state) {
+        case 'INTRO':
+          this.updateIntro(dt);
+          break;
+        case 'MENU':
+          this.updateMenu(dt);
+          break;
+        case 'ROUND_INTRO':
+          this.updateRoundIntro(dt);
+          break;
+        case 'COUNTDOWN':
+          this.updateCountdown(dt);
+          break;
+        case 'PLAYING':
+          this.updatePlaying(dt);
+          break;
+        case 'ROUND_RESULT':
+          this.updateRoundResult(dt);
+          break;
+        case 'TOURNAMENT_END':
+          this.updateTournamentEnd(dt);
+          break;
+      }
     }
 
     particleSystem.update(dt);
@@ -375,6 +382,11 @@ export class GameManager {
 
     particleSystem.render(ctx);
     this.transition.render(ctx);
+
+    if (this.helpOpen) {
+      this.renderHelp(ctx);
+    }
+
     ctx.restore();
   }
 
@@ -474,10 +486,98 @@ export class GameManager {
     this.hud.render(ctx);
   }
 
+  private updateHelpToggle(): void {
+    const f1 = this.inputManager.justPressed('F1');
+    const questionMark =
+      this.inputManager.justPressed('Slash') &&
+      (this.inputManager.isDown('ShiftLeft') || this.inputManager.isDown('ShiftRight'));
+
+    if (f1 || questionMark) {
+      this.helpOpen = !this.helpOpen;
+    } else if (this.inputManager.justPressed('Escape') && this.helpOpen) {
+      this.helpOpen = false;
+    }
+  }
+
+  private static readonly HELP_DESCRIPTIONS: Record<string, string> = {
+    blindbreak: 'Click + drag cue ball to aim. Release to shoot. Power = drag distance.',
+    pingpong: 'Move paddle anywhere in your half. WASD for P1, IJKL for P2.',
+    soccer: 'Move player with directional keys. Space/0 to kick. Shift/Enter to jump.',
+    sumo: 'Move with directional keys. Space/0 to dash. Shift/Enter to jump.',
+    formula: 'Arrow/WASD to steer. Space/0 for turbo. Avoid trails. Complete laps.',
+    volleyball: 'WASD/IJKL to move. Space/0 to hit. Shift/Enter to jump. Gravity changes every 5s.',
+  };
+
+  private renderHelp(ctx: CanvasRenderingContext2D): void {
+    const w = ctx.canvas.width;
+    const h = ctx.canvas.height;
+
+    ctx.fillStyle = 'rgba(0, 0, 20, 0.85)';
+    ctx.fillRect(0, 0, w, h);
+
+    const info = this.gameOrder[this.currentRoundIndex];
+    const gameId = info?.id ?? '';
+    const gameName = info?.name ?? 'BLIND BREAK';
+
+    ctx.textAlign = 'center';
+    ctx.font = '400 24px Orbitron, sans-serif';
+    ctx.fillStyle = '#00f5ff';
+    ctx.fillText(`HOW TO PLAY \u2014 ${gameName}`, w / 2, 60);
+
+    // Game-specific description
+    const desc = GameManager.HELP_DESCRIPTIONS[gameId] ?? '';
+    if (desc) {
+      ctx.font = '600 16px Rajdhani, sans-serif';
+      ctx.fillStyle = '#e0d5c0';
+      ctx.fillText(desc, w / 2, 100);
+    }
+
+    // General controls table
+    const tableY = 150;
+    const col1X = w / 2 - 140;
+    const col2X = w / 2 + 140;
+    const lineH = 28;
+
+    ctx.font = '600 16px Rajdhani, sans-serif';
+    ctx.fillStyle = '#00f5ff';
+    ctx.textAlign = 'center';
+    ctx.fillText('P1 CONTROLS', col1X, tableY);
+    ctx.fillText('P2 CONTROLS', col2X, tableY);
+
+    // Separator
+    ctx.strokeStyle = 'rgba(0, 245, 255, 0.3)';
+    ctx.beginPath();
+    ctx.moveTo(w / 2 - 220, tableY + 10);
+    ctx.lineTo(w / 2 + 220, tableY + 10);
+    ctx.stroke();
+
+    const rows = [
+      ['WASD / Arrows', 'IJKL / Numpad'],
+      ['[Space] Action 1', '[0] Action 1'],
+      ['[Shift] Action 2', '[Enter] Action 2'],
+    ];
+
+    ctx.fillStyle = '#e0d5c0';
+    ctx.font = '600 16px Rajdhani, sans-serif';
+    for (let i = 0; i < rows.length; i++) {
+      const y = tableY + 20 + (i + 1) * lineH;
+      const row = rows[i]!;
+      ctx.fillText(row[0]!, col1X, y);
+      ctx.fillText(row[1]!, col2X, y);
+    }
+
+    // Close hint
+    ctx.font = '400 14px Rajdhani, sans-serif';
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.5)';
+    ctx.textAlign = 'center';
+    ctx.fillText('Press ? or ESC to close', w / 2, h - 30);
+  }
+
   destroy(): void {
     this.inputManager.destroy();
     this.currentGame?.destroy();
     this.introCinematic.destroy();
+    audioManager.stopGameMusic();
     this.tweenManager.clear();
     particleSystem.clear();
     screenShake.reset();
