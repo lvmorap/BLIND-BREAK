@@ -154,6 +154,7 @@ let reconBeamAnim = null; // {startTime, angle, duration:800}
 let firstShotCoach = true; // Show coaching on first shot
 let roundTransMsg = null; // {text, color, timer, maxTimer}
 let scoringReminder = null; // {x, y, ghostId, timer, maxTimer}
+let scoringReminderShown = false;
 let audioCtx = null;
 let audioInited = false;
 let ambientNode = null;
@@ -226,6 +227,7 @@ function resetGame() {
   firstShotCoach = true;
   roundTransMsg = null;
   scoringReminder = null;
+  scoringReminderShown = false;
   power = 0; charging = false; chargeTime = 0;
   reconMode = false;
   aiState = 'IDLE';
@@ -1582,9 +1584,10 @@ function resolveTurn() {
         existing.x = b.lastLitX; existing.y = b.lastLitY; existing.round = currentRound;
       } else {
         ghostBalls.push({id:b.id, x:b.lastLitX, y:b.lastLitY, color:b.color, round:currentRound});
-        // Scoring reminder tooltip on first ghost in round 1
-        if (currentRound <= 2 && !scoringReminder) {
+        // Scoring reminder tooltip on first ghost
+        if (!scoringReminderShown && !scoringReminder) {
           scoringReminder = {x:b.lastLitX, y:b.lastLitY, ghostId:b.id, timer:4000, maxTimer:4000};
+          scoringReminderShown = true;
         }
       }
     } else if (ll > 0.1) {
@@ -1774,7 +1777,7 @@ function drawCountdown(t) {
   ctx.shadowBlur = 30;
 
   const text = countdownVal > 0 ? countdownVal.toString() : 'BREAK!';
-  if (countdownVal <= 0) ctx.fillStyle = '#ffd700';
+  ctx.fillStyle = countdownVal <= 0 ? '#ffd700' : '#fff';
   ctx.fillText(text, 0, 0);
   ctx.shadowBlur = 0;
   ctx.restore();
@@ -2147,7 +2150,7 @@ canvas.addEventListener('mousedown', (e) => {
   // Menu: click "? TUTORIAL" region or anywhere to begin
   if (gameState === 'PRELOAD' || gameState === 'MENU') {
     // Check if "? TUTORIAL" top-right was clicked
-    if (mouseX > C.W - 120 && mouseY < 40) {
+    if (mouseX > C.W - 100 && mouseY < 40) {
       gameState = 'TUTORIAL';
       tutorialStep = 0;
       tutorialSeen = true;
