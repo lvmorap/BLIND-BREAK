@@ -198,24 +198,28 @@ export function updatePhysics(dt: number): void {
       b.vx = -b.vx * C.WALL_RESTITUTION;
       playSound('CUSHION');
       triggerSquash(b);
+      state.wallRipples.push({ x: FELT_L, y: b.y, time: 0, maxTime: 600 });
     }
     if (b.x + C.BALL_R > FELT_R) {
       b.x = FELT_R - C.BALL_R;
       b.vx = -b.vx * C.WALL_RESTITUTION;
       playSound('CUSHION');
       triggerSquash(b);
+      state.wallRipples.push({ x: FELT_R, y: b.y, time: 0, maxTime: 600 });
     }
     if (b.y - C.BALL_R < FELT_T) {
       b.y = FELT_T + C.BALL_R;
       b.vy = -b.vy * C.WALL_RESTITUTION;
       playSound('CUSHION');
       triggerSquash(b);
+      state.wallRipples.push({ x: b.x, y: FELT_T, time: 0, maxTime: 600 });
     }
     if (b.y + C.BALL_R > FELT_B) {
       b.y = FELT_B - C.BALL_R;
       b.vy = -b.vy * C.WALL_RESTITUTION;
       playSound('CUSHION');
       triggerSquash(b);
+      state.wallRipples.push({ x: b.x, y: FELT_B, time: 0, maxTime: 600 });
     }
 
     for (const pk of POCKETS) {
@@ -320,27 +324,10 @@ export function fireRecon(angle: number): void {
     cy: startY,
   };
   setTimeout(() => {
-    const spread = (C.RECON_SPREAD_DEG * Math.PI) / 180;
-    const beamLength = 300;
-    for (let i = -1; i <= 1; i++) {
-      const a = angle + i * spread;
-      const steps = 30;
-      for (let s = 0; s < steps; s++) {
-        const t = s / steps;
-        const bx = startX + Math.cos(a) * beamLength * t;
-        const by = startY + Math.sin(a) * beamLength * t;
-        if (bx > FELT_L && bx < FELT_R && by > FELT_T && by < FELT_B) {
-          state.lightZones.push({
-            x: bx,
-            y: by,
-            radius: 25,
-            createdAtRound: state.currentRound,
-            intensity: 0.7,
-            createdAt: performance.now(),
-          });
-        }
-      }
-    }
+    // Supernova explosion - illuminate everything
+    state.supernovaActive = true;
+    state.supernovaTimer = 3000;
+    triggerShake(10, 400);
     if (state.currentTurn === 'PLAYER') state.playerReconUsed = true;
     else state.aiReconUsed = true;
     state.reconBeamAnim = null;

@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="48" height="48">
+  <!-- Alien hand cursor for dragging -->
+  <g transform="translate(24,24)">
+    <!-- Palm -->
+    <ellipse cx="0" cy="6" rx="10" ry="8" fill="#50c878" opacity="0.85"/>
+    <!-- Fingers -->
+    <ellipse cx="-6" cy="-8" rx="3" ry="8" fill="#50c878" opacity="0.85" transform="rotate(-15,-6,-8)"/>
+    <ellipse cx="0" cy="-10" rx="3" ry="9" fill="#50c878" opacity="0.85"/>
+    <ellipse cx="6" cy="-8" rx="3" ry="8" fill="#50c878" opacity="0.85" transform="rotate(15,6,-8)"/>
+    <!-- Fingertip bulbs -->
+    <circle cx="-7" cy="-16" r="3.5" fill="#64dc8c" opacity="0.7"/>
+    <circle cx="0" cy="-19" r="3.5" fill="#64dc8c" opacity="0.7"/>
+    <circle cx="7" cy="-16" r="3.5" fill="#64dc8c" opacity="0.7"/>
+    <!-- Thumb -->
+    <ellipse cx="-12" cy="2" rx="3" ry="6" fill="#50c878" opacity="0.85" transform="rotate(-30,-12,2)"/>
+  </g>
+</svg>

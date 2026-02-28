@@ -3,6 +3,11 @@ import { state } from '../core/state.ts';
 import { ctx, lightCanvas, lctx } from './canvas.ts';
 
 export function drawDarkness(): void {
+  // If supernova is active, skip darkness entirely
+  if (state.supernovaActive && state.supernovaTimer > 0) {
+    return;
+  }
+
   lctx.fillStyle = 'rgba(5,5,8,0.96)';
   lctx.fillRect(0, 0, C.W, C.H);
 

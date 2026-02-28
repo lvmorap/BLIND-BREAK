@@ -14,10 +14,12 @@ import { drawDarkness } from './darkness.ts';
 import {
   drawHUD,
   drawAimLine,
+  drawAlienHand,
   drawPowerBar,
   drawReconButton,
   drawChargingEffects,
   drawReconBeams,
+  drawSupernovaEffect,
   drawPopups,
   drawParticlesView,
   drawNumberBouncePopups,
@@ -43,11 +45,13 @@ export function drawScene(t: number): void {
 
   drawBalls();
   drawDarkness();
+  drawSupernovaEffect();
   drawTableOutline();
   drawParticlesView();
   drawNumberBouncePopups();
   drawNeonSign(t);
   drawAimLine();
+  drawAlienHand();
   drawChargingEffects(t);
   drawPowerBar();
   drawReconButton();

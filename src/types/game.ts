@@ -54,6 +54,7 @@ export interface GameConstants {
   readonly TRAIL_DURATION: number;
   readonly TRAIL_LIGHT_R: number;
   readonly MAX_DRAG_DIST: number;
+  readonly TURN_TIMER: number;
 }
 
 /**
