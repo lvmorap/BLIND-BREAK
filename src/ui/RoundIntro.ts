@@ -77,7 +77,12 @@ function getGameLoreKey(gameId: string): string {
   if (gameId.includes('soccer') || gameId.includes('zero')) return 'soccer';
   if (gameId.includes('sumo') || gameId.includes('orbital') || gameId.includes('volcan'))
     return 'sumo';
-  if (gameId.includes('formula') || gameId.includes('race') || gameId.includes('saturn'))
+  if (
+    gameId.includes('formula') ||
+    gameId.includes('race') ||
+    gameId.includes('saturn') ||
+    gameId.includes('jupiter')
+  )
     return 'formula';
   if (gameId.includes('volley') || gameId.includes('cosmic') || gameId.includes('gravity'))
     return 'volleyball';

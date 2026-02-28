@@ -1133,10 +1133,10 @@ export class VolleyballGame implements IGame {
     const winner = this.getWinner();
     if (winner === 1) {
       ctx.fillStyle = COLOR_P1;
-      ctx.fillText('PLAYER 1 WINS', CANVAS_W / 2, CANVAS_H / 2 - 20);
+      ctx.fillText('HUMAN WINS', CANVAS_W / 2, CANVAS_H / 2 - 20);
     } else if (winner === 2) {
       ctx.fillStyle = COLOR_P2;
-      ctx.fillText('PLAYER 2 WINS', CANVAS_W / 2, CANVAS_H / 2 - 20);
+      ctx.fillText('ALIEN WINS', CANVAS_W / 2, CANVAS_H / 2 - 20);
     } else {
       ctx.fillStyle = '#ffffff';
       ctx.fillText('DRAW', CANVAS_W / 2, CANVAS_H / 2 - 20);

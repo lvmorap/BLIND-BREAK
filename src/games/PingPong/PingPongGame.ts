@@ -294,7 +294,7 @@ export class PingPongGame implements IGame {
       ctx.textBaseline = 'middle';
 
       const winner = this.getWinner();
-      const msg = winner === 1 ? 'PLAYER 1 WINS!' : winner === 2 ? 'PLAYER 2 WINS!' : 'DRAW!';
+      const msg = winner === 1 ? 'HUMAN WINS!' : winner === 2 ? 'ALIEN WINS!' : 'DRAW!';
       ctx.fillText(msg, W / 2, H / 2);
     }
   }

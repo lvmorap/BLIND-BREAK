@@ -87,7 +87,7 @@ export class MenuScreen {
     // Starfield background
     this.starfield.render(ctx, 0.016);
 
-    // Title: BLIND BREAK
+    // Title: NEXARI
     ctx.textAlign = 'center';
     ctx.font = '900 72px Orbitron, sans-serif';
     ctx.save();

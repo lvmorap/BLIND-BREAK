@@ -1038,7 +1038,7 @@ export class FormulaGame implements IGame {
   private renderPlayerHUD(ctx: CanvasRenderingContext2D, idx: 0 | 1, baseX: number): void {
     const car = this.cars[idx];
     const color = idx === 0 ? P1_COLOR : P2_COLOR;
-    const label = idx === 0 ? 'P1' : 'P2';
+    const label = idx === 0 ? 'HUMAN' : 'ALIEN';
 
     ctx.textAlign = 'left';
     ctx.font = 'bold 16px monospace';
