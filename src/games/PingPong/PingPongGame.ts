@@ -1,5 +1,6 @@
 import { InputManager } from '../../core/InputManager.ts';
 import type { IGame } from '../IGame.ts';
+import { screenShake } from '../../core/ScreenShake.ts';
 
 // ── Constants ──────────────────────────────────────────────────────────────
 const W = 1280;
@@ -186,9 +187,11 @@ export class PingPongGame implements IGame {
     // ── Scoring ──────────────────────────────────────────────────────────
     if (this.ball.x + BALL_RADIUS < 0) {
       this.scoreP2++;
+      screenShake.trigger(0.2, 200);
       this.resetAfterScore(1);
     } else if (this.ball.x - BALL_RADIUS > W) {
       this.scoreP1++;
+      screenShake.trigger(0.2, 200);
       this.resetAfterScore(-1);
     }
 

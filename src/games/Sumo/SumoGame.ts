@@ -1,5 +1,6 @@
 import { InputManager } from '../../core/InputManager.ts';
 import type { IGame } from '../IGame.ts';
+import { screenShake } from '../../core/ScreenShake.ts';
 
 // Canvas
 const W = 1280;
@@ -426,6 +427,7 @@ export class SumoGame implements IGame {
 
       // Collision screen shake
       this.collisionShakeTimer = 0.15;
+      screenShake.trigger(0.5, 200);
     }
   }
 

@@ -1,5 +1,6 @@
 import { IGame } from '../IGame.ts';
 import { InputManager, PlayerInput } from '../../core/InputManager.ts';
+import { screenShake } from '../../core/ScreenShake.ts';
 
 // ── Constants ──────────────────────────────────────────────────────────────────
 const CANVAS_W = 1280;
@@ -675,6 +676,7 @@ export class VolleyballGame implements IGame {
     }
 
     if (scored) {
+      screenShake.trigger(0.3, 300);
       this.freezeTimer = 0.6;
       this.resetBall();
       this.snapPlayersToFloor();
