@@ -50,6 +50,10 @@ export interface GameConstants {
   readonly RECON_SPREAD_DEG: number;
   readonly AI_GHOST_VARIANCE_DEG: number;
   readonly AI_PROBE_VARIANCE_DEG: number;
+  readonly CUE_LIGHT_R: number;
+  readonly TRAIL_DURATION: number;
+  readonly TRAIL_LIGHT_R: number;
+  readonly MAX_DRAG_DIST: number;
 }
 
 /**
@@ -112,6 +116,7 @@ export interface LightZone {
   radius: number;
   createdAtRound: number;
   intensity: number;
+  createdAt: number;
 }
 
 /**

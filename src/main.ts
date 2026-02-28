@@ -53,9 +53,14 @@ function update(dt: number): void {
 
   if (state.gameState !== 'PLAYING') return;
 
-  if (state.charging && state.dragging && state.currentTurn === 'PLAYER') {
-    state.chargeTime += dt;
-    state.power = Math.min(1, state.chargeTime / 1.5);
+  if (state.dragging && state.currentTurn === 'PLAYER') {
+    const cue = state.balls[0];
+    if (cue && cue.alive) {
+      const dx = state.mouseX - cue.x;
+      const dy = state.mouseY - cue.y;
+      const dragDist = Math.sqrt(dx * dx + dy * dy);
+      state.power = Math.min(1, dragDist / C.MAX_DRAG_DIST);
+    }
   }
 
   if (state.turnPhase === 'ROLLING') {
@@ -100,6 +105,9 @@ function update(dt: number): void {
   state.parallaxY += (state.parallaxTargetY - state.parallaxY) * 0.05;
 
   state.breathTimer += dt;
+
+  const now = performance.now();
+  state.lightZones = state.lightZones.filter((z) => now - z.createdAt < C.TRAIL_DURATION);
 
   if (state.chromaticTimer > 0) state.chromaticTimer--;
 

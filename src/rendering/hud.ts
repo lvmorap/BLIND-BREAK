@@ -409,14 +409,14 @@ export function drawFirstShotCoach(t: number): void {
     ctx.fillStyle = 'rgba(0,0,0,0.75)';
     ctx.strokeStyle = 'rgba(0,229,255,0.6)';
     ctx.lineWidth = 1;
-    const tw = 160;
+    const tw = 260;
     const th = 24;
     ctx.fillRect(ax - tw / 2, ay - th - 8, tw, th);
     ctx.strokeRect(ax - tw / 2, ay - th - 8, tw, th);
     ctx.fillStyle = '#fff';
     ctx.font = '13px Rajdhani';
     ctx.textAlign = 'center';
-    ctx.fillText('DRAG FROM BALL TO AIM', ax, ay - th + 8);
+    ctx.fillText('DRAG FROM BALL — FARTHER = MORE POWER', ax, ay - th + 8);
     ctx.restore();
   }
 }

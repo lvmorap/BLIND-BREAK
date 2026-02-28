@@ -81,9 +81,9 @@ export function drawMenu(t: number): void {
   ctx.fillStyle = '#aaa';
   ctx.font = '13px Rajdhani';
   const rules1 = [
-    'The table is always in darkness',
-    'Your shot reveals the cue ball path',
-    'Use RECON once to see everything',
+    'The table is always in total darkness',
+    'A small light follows the cue ball',
+    'Shots leave a fading trail',
     '+1 point per ball pocketed',
   ];
   rules1.forEach((r, i) => ctx.fillText(r, col1x, 282 + i * 20));
@@ -94,9 +94,9 @@ export function drawMenu(t: number): void {
   ctx.fillStyle = '#aaa';
   ctx.font = '13px Rajdhani';
   const rules2 = [
-    'Mouse drag — aim direction',
-    'Hold button — charge power',
-    'Release — shoot',
+    'Drag from ball — aim & set power',
+    'Farther drag = more power',
+    'Pocket a ball = extra turn',
     'ESC — pause | T — tutorial',
   ];
   rules2.forEach((r, i) => ctx.fillText(r, col2x, 282 + i * 20));
@@ -290,11 +290,11 @@ export function drawTutorial(t: number): void {
   ctx.textAlign = 'center';
 
   const captions = [
-    'Drag to aim. Hold to charge power.',
-    'The table is always in darkness.',
-    'The cue ball lights up only while rolling.',
-    'Use RECON once to reveal everything.',
-    '+1 point per ball pocketed.',
+    'Drag from the cue ball to aim and set power.',
+    'The table is always in total darkness.',
+    'A light follows the cue ball. Shots leave a trail.',
+    'Pocket a ball for an extra turn!',
+    'Scratch = lose points and your turn.',
   ];
 
   ctx.fillText(captions[step] ?? '', cx, cy + 140);
@@ -341,33 +341,23 @@ export function drawTutorial(t: number): void {
     ctx.arc(bx, cy, glowR, 0, Math.PI * 2);
     ctx.fill();
   } else if (step === 3) {
-    ctx.strokeStyle = 'rgba(0,229,255,0.6)';
-    ctx.lineWidth = 2;
-    ctx.beginPath();
-    ctx.arc(cx, cy, 60, 0, Math.PI * 2);
-    ctx.stroke();
-    ctx.fillStyle = '#00e5ff';
-    ctx.font = 'bold 14px Orbitron';
-    ctx.fillText('RECON', cx, cy + 5);
-    const scanAngle = state.tutorialAnim * 2;
-    for (let i = -1; i <= 1; i++) {
-      const a = scanAngle + (i * Math.PI) / 6;
-      ctx.strokeStyle = `rgba(0,229,255,${0.3 + 0.2 * Math.sin(state.tutorialAnim * 3)})`;
-      ctx.lineWidth = 3;
-      ctx.beginPath();
-      ctx.moveTo(cx, cy);
-      ctx.lineTo(cx + Math.cos(a) * 80, cy + Math.sin(a) * 80);
-      ctx.stroke();
-    }
+    ctx.fillStyle = 'rgba(0,0,0,0.3)';
+    ctx.fillRect(cx - 90, cy - 45, 180, 70);
+    ctx.fillStyle = '#ffd700';
+    ctx.font = 'bold 22px Orbitron';
+    ctx.fillText('EXTRA TURN!', cx, cy - 10);
+    ctx.fillStyle = '#aaa';
+    ctx.font = '14px Rajdhani';
+    ctx.fillText('Pocket a ball → shoot again', cx, cy + 14);
   } else if (step === 4) {
     ctx.fillStyle = 'rgba(0,0,0,0.3)';
     ctx.fillRect(cx - 80, cy - 40, 160, 60);
-    ctx.fillStyle = '#00cc55';
-    ctx.font = 'bold 28px Orbitron';
-    ctx.fillText('+1', cx, cy);
+    ctx.fillStyle = '#ff4444';
+    ctx.font = 'bold 22px Orbitron';
+    ctx.fillText('SCRATCH', cx, cy - 8);
     ctx.fillStyle = '#aaa';
     ctx.font = '14px Rajdhani';
-    ctx.fillText('per ball pocketed', cx, cy + 20);
+    ctx.fillText('-1 point & lose your turn', cx, cy + 16);
   }
 
   const dotY = cy + 166;

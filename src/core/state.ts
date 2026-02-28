@@ -87,6 +87,8 @@ export const state = {
   breathTimer: 0,
   numberBouncePopups: [] as NumberBouncePopup[],
   scratchFlashTimer: 0,
+  ballPocketedThisTurn: false,
+  cueScratchedThisTurn: false,
 
   balls: [] as Ball[],
   lightZones: [] as LightZone[],
@@ -190,6 +192,8 @@ export function resetGame(): void {
   state.chromaticTimer = 0;
   state.numberBouncePopups = [];
   state.scratchFlashTimer = 0;
+  state.ballPocketedThisTurn = false;
+  state.cueScratchedThisTurn = false;
 }
 
 export function getCueBall(): Ball {
