@@ -17,6 +17,7 @@ import { IntroCinematic } from '../ui/IntroCinematic.ts';
 export type GameState =
   | 'INTRO'
   | 'MENU'
+  | 'AI_SELECT'
   | 'ROUND_INTRO'
   | 'COUNTDOWN'
   | 'PLAYING'
@@ -60,6 +61,8 @@ export class GameManager {
   private resultWinner: 1 | 2 | null = null;
   private shakeOffset: { ox: number; oy: number } = { ox: 0, oy: 0 };
   private lastDt: number = 0;
+  private aiMode: boolean = true;
+  private aiSelectTimer: number = 0;
 
   constructor(canvas: HTMLCanvasElement, ctx: CanvasRenderingContext2D, registry: GameInfo[]) {
     this.canvas = canvas;
@@ -85,7 +88,7 @@ export class GameManager {
     const firstHalf = this.shuffleGames(this.registry);
     const secondHalf = this.shuffleGames(this.registry);
     this.gameOrder = [...firstHalf, ...secondHalf];
-    this.beginRoundIntro();
+    this.beginAISelect();
   }
 
   startFreePlay(gameId: string): void {
@@ -97,7 +100,7 @@ export class GameManager {
     const game = this.registry.find((g) => g.id === gameId);
     if (!game) return;
     this.gameOrder = [game];
-    this.beginRoundIntro();
+    this.beginAISelect();
   }
 
   getCurrentState(): GameState {
@@ -124,6 +127,11 @@ export class GameManager {
       }
     }
     return shuffled;
+  }
+
+  private beginAISelect(): void {
+    this.state = 'AI_SELECT';
+    this.aiSelectTimer = 0;
   }
 
   private beginRoundIntro(): void {
@@ -171,6 +179,7 @@ export class GameManager {
     if (this.mode === 'TOURNAMENT') {
       this.currentGame.setDurationMultiplier?.(0.5);
     }
+    this.currentGame.setAIMode?.(this.aiMode);
     this.currentGame.init(this.canvas, this.ctx);
     audioManager.playWhistle();
   }
@@ -217,6 +226,9 @@ export class GameManager {
         break;
       case 'MENU':
         this.updateMenu(dt);
+        break;
+      case 'AI_SELECT':
+        this.updateAISelect(dt);
         break;
       case 'ROUND_INTRO':
         this.updateRoundIntro(dt);
@@ -268,6 +280,23 @@ export class GameManager {
       } else {
         this.startFreePlay(action.gameId);
       }
+    }
+  }
+
+  private updateAISelect(dt: number): void {
+    this.aiSelectTimer += dt;
+    const p1 = this.inputManager.getPlayer1();
+    const p2 = this.inputManager.getPlayer2();
+
+    // F/action1 = VS AI, G/action2 = VS LOCAL (2 Players)
+    if (p1.action1 || p2.action1) {
+      this.aiMode = true;
+      audioManager.playMenuSelect();
+      this.beginRoundIntro();
+    } else if (p1.action2 || p2.action2) {
+      this.aiMode = false;
+      audioManager.playMenuSelect();
+      this.beginRoundIntro();
     }
   }
 
@@ -340,6 +369,9 @@ export class GameManager {
       case 'MENU':
         this.menuScreen.render(ctx);
         break;
+      case 'AI_SELECT':
+        this.renderAISelect(ctx);
+        break;
       case 'ROUND_INTRO':
         this.roundIntro?.render(ctx);
         break;
@@ -361,6 +393,67 @@ export class GameManager {
     particleSystem.render(ctx);
     this.transition.render(ctx);
     ctx.restore();
+  }
+
+  private renderAISelect(ctx: CanvasRenderingContext2D): void {
+    const w = ctx.canvas.width;
+    const h = ctx.canvas.height;
+
+    ctx.fillStyle = 'rgba(5, 5, 8, 0.92)';
+    ctx.fillRect(0, 0, w, h);
+
+    ctx.textAlign = 'center';
+
+    // Title
+    ctx.font = '700 36px Orbitron, sans-serif';
+    ctx.fillStyle = '#ffffff';
+    ctx.fillText('SELECT MODE', w / 2, h / 2 - 100);
+
+    // VS AI option
+    ctx.save();
+    ctx.shadowColor = COLORS.NEXARI_CYAN;
+    ctx.shadowBlur = 15;
+    ctx.strokeStyle = COLORS.NEXARI_CYAN;
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.roundRect(w / 2 - 150, h / 2 - 55, 300, 50, 8);
+    ctx.stroke();
+    ctx.fillStyle = 'rgba(0, 229, 255, 0.1)';
+    ctx.fill();
+    ctx.shadowBlur = 0;
+    ctx.restore();
+
+    ctx.font = '700 22px Orbitron, sans-serif';
+    ctx.fillStyle = COLORS.NEXARI_CYAN;
+    ctx.fillText('🧑 VS 👾  AI MODE', w / 2, h / 2 - 23);
+
+    // VS LOCAL option
+    ctx.save();
+    ctx.strokeStyle = '#ff4466';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.roundRect(w / 2 - 150, h / 2 + 15, 300, 50, 8);
+    ctx.stroke();
+    ctx.fillStyle = 'rgba(255, 68, 102, 0.1)';
+    ctx.fill();
+    ctx.restore();
+
+    ctx.font = '700 22px Orbitron, sans-serif';
+    ctx.fillStyle = '#ff4466';
+    ctx.fillText('🧑 VS 🧑  2 PLAYERS', w / 2, h / 2 + 47);
+
+    // Instructions
+    ctx.font = '400 16px Rajdhani, sans-serif';
+    ctx.fillStyle = '#888888';
+    ctx.fillText('F / RShift = VS AI  |  G / Enter = 2 Players', w / 2, h / 2 + 100);
+
+    // Blink
+    const blink = Math.sin(this.aiSelectTimer * 4) > 0;
+    if (blink) {
+      ctx.font = '500 14px Rajdhani, sans-serif';
+      ctx.fillStyle = '#666666';
+      ctx.fillText('Choose your battle mode', w / 2, h / 2 + 125);
+    }
   }
 
   private renderCountdown(ctx: CanvasRenderingContext2D): void {
