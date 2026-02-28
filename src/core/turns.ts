@@ -1,8 +1,7 @@
-import { C } from './constants.ts';
+import { C, FELT_L, FELT_T, FELT_R, FELT_B, FELT_CX, FELT_CY } from './constants.ts';
 import { state, getCueBall } from './state.ts';
 import { allObjectBallsSunk, triggerShake } from './physics.ts';
 import { aiTakeTurn } from '../ai/ai.ts';
-import { FELT_L, FELT_T, FELT_R, FELT_B, FELT_CX, FELT_CY } from './constants.ts';
 
 export function resolveTurn(): void {
   state.turnPhase = 'RESOLVE';

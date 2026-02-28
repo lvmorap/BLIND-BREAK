@@ -121,7 +121,7 @@ export function drawLamps(): void {
   }
 }
 
-export function drawNeonSign(t: number): void {
+export function updateNeonFlicker(t: number): void {
   const base = 0.85 + 0.15 * Math.sin((t * 2 * Math.PI) / 3700);
   let flick = base;
   if (state.neonDropTimer > 0) {
@@ -131,6 +131,10 @@ export function drawNeonSign(t: number): void {
     state.neonDropTimer = 80;
   }
   state.neonFlicker = flick;
+}
+
+export function drawNeonSign(t: number): void {
+  updateNeonFlicker(t);
 
   const text = 'BLIND BREAK';
   const nx = C.W / 2;

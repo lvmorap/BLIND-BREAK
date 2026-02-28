@@ -1,7 +1,14 @@
 import { C } from '../core/constants.ts';
 import { state } from '../core/state.ts';
 import { ctx } from './canvas.ts';
-import { drawBrickWall, drawWallSconces, drawTable, drawLamps, drawNeonSign } from './table.ts';
+import {
+  drawBrickWall,
+  drawWallSconces,
+  drawTable,
+  drawLamps,
+  drawNeonSign,
+  updateNeonFlicker,
+} from './table.ts';
 import { drawBalls } from './balls.ts';
 import { drawScene } from './scene.ts';
 
@@ -109,15 +116,7 @@ export function drawMenu(t: number): void {
   ctx.textAlign = 'right';
   ctx.fillText('? TUTORIAL', C.W - 18, 28);
 
-  const base = 0.85 + 0.15 * Math.sin((t * 2 * Math.PI) / 3700);
-  let flick = base;
-  if (state.neonDropTimer > 0) {
-    flick = 0.3;
-    state.neonDropTimer -= 16;
-  } else if (Math.random() < 0.003) {
-    state.neonDropTimer = 80;
-  }
-  state.neonFlicker = flick;
+  updateNeonFlicker(t);
 }
 
 export function drawCountdown(t: number): void {
