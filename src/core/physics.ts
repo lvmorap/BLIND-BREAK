@@ -26,6 +26,24 @@ export function getLightLevel(x: number, y: number): number {
   return 0;
 }
 
+export function getVisibility(x: number, y: number): number {
+  let level = getLightLevel(x, y);
+  if (level > 0) return level;
+  const now = performance.now();
+  for (const z of state.lightZones) {
+    const age = now - z.createdAt;
+    if (age > C.TRAIL_DURATION) continue;
+    const dx = x - z.x;
+    const dy = y - z.y;
+    const dist = Math.sqrt(dx * dx + dy * dy);
+    if (dist < z.radius) {
+      const fade = 1 - age / C.TRAIL_DURATION;
+      level = Math.max(level, fade * (1 - dist / z.radius));
+    }
+  }
+  return level;
+}
+
 export function triggerShake(intensity: number, duration: number): void {
   state.screenShake.intensity = Math.min(intensity, C.SHAKE_CAP);
   state.screenShake.duration = duration;
@@ -153,6 +171,7 @@ export function updatePhysics(dt: number): void {
     if (spd < C.MIN_VEL) {
       b.vx = 0;
       b.vy = 0;
+      b.trail = [];
     }
 
     if (spd > 0.5) {

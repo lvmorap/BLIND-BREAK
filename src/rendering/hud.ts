@@ -1,6 +1,5 @@
 import { C, FELT_L, FELT_T, FELT_R, FELT_B, FELT_CX, FELT_CY } from '../core/constants.ts';
 import { state, getCueBall } from '../core/state.ts';
-import { getLightLevel } from '../core/physics.ts';
 import { ctx } from './canvas.ts';
 
 export function drawHUD(): void {
@@ -103,40 +102,7 @@ export function drawAimLine(): void {
       hitWallFound = true;
       break;
     }
-    let hitBall = false;
-    for (let i = 1; i < state.balls.length; i++) {
-      const ball = state.balls[i];
-      if (!ball || !ball.alive) continue;
-      const bx = ball.x - px;
-      const by = ball.y - py;
-      if (bx * bx + by * by < C.BALL_R * 2 * (C.BALL_R * 2)) {
-        endX = px;
-        endY = py;
-        hitBall = true;
-        const ll = getLightLevel(ball.x, ball.y);
-        if (ll > 0.3) {
-          ctx.lineTo(endX, endY);
-          ctx.stroke();
-          ctx.strokeStyle = 'rgba(0,229,255,0.4)';
-          ctx.setLineDash([]);
-          ctx.beginPath();
-          ctx.arc(ball.x, ball.y, C.BALL_R + 4, 0, Math.PI * 2);
-          ctx.stroke();
-          const hitAngle = Math.atan2(ball.y - py, ball.x - px);
-          ctx.beginPath();
-          ctx.moveTo(ball.x, ball.y);
-          ctx.lineTo(ball.x + Math.cos(hitAngle) * 30, ball.y + Math.sin(hitAngle) * 30);
-          ctx.stroke();
-        }
-        break;
-      }
-    }
-    if (hitBall) {
-      ctx.lineTo(endX, endY);
-      ctx.stroke();
-      ctx.restore();
-      return;
-    }
+
   }
 
   ctx.lineTo(endX, endY);
