@@ -144,6 +144,8 @@ let endStats = {
 };
 let settleTimer = 0;
 let reconBeamAnim = null; // {startTime, angle, duration:800}
+let firstShotCoach = true; // Show coaching on first shot
+let roundTransMsg = null; // {text, color, timer, maxTimer}
 let audioCtx = null;
 let audioInited = false;
 let ambientNode = null;
@@ -181,9 +183,11 @@ function resetBalls() {
   ];
   for (let i = 0; i < 7; i++) {
     const p = positions[i];
+    const bx = rackX + p[0]*spacing, by = rackY + p[1]*spacing;
     balls.push({
-      id: i+1, x: rackX + p[0]*spacing, y: rackY + p[1]*spacing,
+      id: i+1, x: bx, y: by,
       vx:0, vy:0, color:BALL_COLORS[i+1], num:BALL_NAMES[i+1],
+      lastLitX: bx, lastLitY: by,
       alive:true, sinking:false, sinkTimer:0, sinkScale:1,
       trail:[], squash:{sx:1,sy:1,timer:0}
     });
@@ -210,6 +214,8 @@ function resetGame() {
   };
   settleTimer = 0;
   reconBeamAnim = null;
+  firstShotCoach = true;
+  roundTransMsg = null;
   power = 0; charging = false; chargeTime = 0;
   reconMode = false;
   aiState = 'IDLE';
@@ -529,6 +535,12 @@ function updatePhysics(dt) {
       // Add light zone
       const r = b.id === 0 ? C.LIGHT_CUE_R : C.LIGHT_OBJ_R;
       lightZones.push({x:b.x, y:b.y, radius:r, createdAtRound:currentRound, intensity:C.DARKNESS_ALPHA});
+    }
+
+    // Track last lit position for ghost balls
+    if (b.id > 0 && getLightLevel(b.x, b.y) > 0.1) {
+      b.lastLitX = b.x;
+      b.lastLitY = b.y;
     }
 
     // Wall collisions
@@ -1202,9 +1214,18 @@ function drawPowerBar() {
 }
 
 function drawReconButton() {
-  if (currentTurn !== 'PLAYER' || turnPhase !== 'AIM' || playerReconUsed) return;
+  if (currentTurn !== 'PLAYER' || turnPhase !== 'AIM') return;
 
   const bx = 15, by = 15, bw = 80, bh = 30;
+  if (playerReconUsed) {
+    ctx.fillStyle = 'rgba(40,40,40,0.3)';
+    ctx.fillRect(bx, by, bw, bh);
+    ctx.fillStyle = '#555';
+    ctx.font = 'bold 12px Orbitron';
+    ctx.textAlign = 'center';
+    ctx.fillText('USED', bx + bw/2, by + 20);
+    return;
+  }
   ctx.fillStyle = reconMode ? 'rgba(0,229,255,0.3)' : 'rgba(255,255,255,0.1)';
   ctx.strokeStyle = reconMode ? '#00e5ff' : '#666';
   ctx.lineWidth = 1;
@@ -1250,13 +1271,15 @@ function fireShot(angle, shotPower) {
 }
 
 function fireRecon(angle) {
+  const cueBall = getCueBall();
+  const startX = cueBall.x, startY = cueBall.y;
   // Start beam animation before resolving
   reconBeamAnim = {
     angle: angle,
     startTime: performance.now(),
     duration: 800,
-    cx: getCueBall().x,
-    cy: getCueBall().y
+    cx: startX,
+    cy: startY
   };
   // Delay actual light zone creation until animation finishes
   setTimeout(() => {
@@ -1267,10 +1290,10 @@ function fireRecon(angle) {
       const steps = 30;
       for (let s = 0; s < steps; s++) {
         const t = s / steps;
-        const cx = reconBeamAnim.cx + Math.cos(a) * beamLength * t;
-        const cy = reconBeamAnim.cy + Math.sin(a) * beamLength * t;
-        if (cx > FELT_L && cx < FELT_R && cy > FELT_T && cy < FELT_B) {
-          lightZones.push({x:cx, y:cy, radius:25, createdAtRound:currentRound, intensity:0.7});
+        const bx = startX + Math.cos(a) * beamLength * t;
+        const by = startY + Math.sin(a) * beamLength * t;
+        if (bx > FELT_L && bx < FELT_R && by > FELT_T && by < FELT_B) {
+          lightZones.push({x:bx, y:by, radius:25, createdAtRound:currentRound, intensity:0.7});
         }
       }
     }
@@ -1278,7 +1301,7 @@ function fireRecon(angle) {
     else aiReconUsed = true;
     reconBeamAnim = null;
     turnPhase = 'ROLLING';
-    setTimeout(() => { if (turnPhase === 'ROLLING') resolveTurn(); }, 500);
+    // Balls are already stopped so settle timer will trigger resolve
   }, 800);
 }
 
@@ -1460,18 +1483,22 @@ function resolveTurn() {
   // Prune old ghost balls
   ghostBalls = ghostBalls.filter(g => (currentRound - g.round) <= 2);
 
-  // Ghost tracking: update/create ghosts for balls whose illumination has expired
+  // Ghost tracking: for balls no longer illuminated, keep ghost at LAST KNOWN lit position
+  // (lastLitPos is updated during physics when ball is in light)
   for (let i = 1; i < balls.length; i++) {
     const b = balls[i];
     if (!b.alive) continue;
     const ll = getLightLevel(b.x, b.y);
-    if (ll <= 0.1) {
+    if (ll <= 0.1 && b.lastLitX !== undefined) {
       const existing = ghostBalls.find(g => g.id === b.id);
       if (existing) {
-        existing.x = b.x; existing.y = b.y; existing.round = currentRound;
+        existing.x = b.lastLitX; existing.y = b.lastLitY; existing.round = currentRound;
       } else {
-        ghostBalls.push({id:b.id, x:b.x, y:b.y, color:b.color, round:currentRound});
+        ghostBalls.push({id:b.id, x:b.lastLitX, y:b.lastLitY, color:b.color, round:currentRound});
       }
+    } else if (ll > 0.1) {
+      // Remove ghost if ball is currently lit (it's visible now)
+      ghostBalls = ghostBalls.filter(g => g.id !== b.id);
     }
   }
 
@@ -1487,6 +1514,11 @@ function resolveTurn() {
   } else {
     currentTurn = 'PLAYER';
     currentRound++;
+    // Round transition messages
+    if (currentRound === 2) roundTransMsg = {text:'DARKNESS DEEPENS', color:'#6644aa', timer:2000, maxTimer:2000};
+    else if (currentRound === 4) roundTransMsg = {text:'TRUST YOUR MEMORY', color:'#4488ff', timer:2000, maxTimer:2000};
+    else if (currentRound === 6) roundTransMsg = {text:'FINAL SHADOWS', color:'#ff4444', timer:2000, maxTimer:2000};
+    else if (currentRound === 7) { roundTransMsg = {text:'LAST SHOT', color:'#ffd700', timer:2500, maxTimer:2500}; triggerShake(5, 200); }
     if (currentRound > C.ROUNDS) {
       gameState = 'ENDSCREEN';
       return;
@@ -1572,12 +1604,9 @@ function drawMenu(t) {
   drawWallSconces();
   drawTable();
   drawLamps();
-  drawBalls();
+  // No balls on menu - empty table per spec
+  drawDarkness();
   drawNeonSign(t);
-
-  // Darken overlay
-  ctx.fillStyle = 'rgba(5,5,8,0.5)';
-  ctx.fillRect(0, 0, C.W, C.H);
 
   // Title
   ctx.save();
@@ -1594,24 +1623,24 @@ function drawMenu(t) {
   ctx.fillStyle = '#888';
   ctx.font = '16px Rajdhani';
   ctx.textAlign = 'center';
-  ctx.fillText('NOIR BILLIARDS IN THE DARK', C.W/2, 210);
+  ctx.fillText('Billiards in the Dark', C.W/2, 210);
 
   // Rules columns
   const col1x = C.W/2 - 170, col2x = C.W/2 + 170;
   ctx.font = 'bold 14px Rajdhani';
   ctx.fillStyle = '#00e5ff';
-  ctx.fillText('HOW TO PLAY', col1x, 270);
+  ctx.fillText('THE RULES', col1x, 270);
   ctx.fillStyle = '#aaa';
   ctx.font = '13px Rajdhani';
-  const rules1 = ['Drag from cue ball to aim','Hold to charge power','Release to shoot','Rolling balls reveal the table','Fog hides what you can\'t see'];
+  const rules1 = ['Your shot is your only light','What you reveal, they see too','Ghosts show where balls were','Pocket in darkness. Score triple.'];
   rules1.forEach((r,i) => ctx.fillText(r, col1x, 292 + i*20));
 
   ctx.font = 'bold 14px Rajdhani';
   ctx.fillStyle = '#ffd700';
-  ctx.fillText('SCORING', col2x, 270);
+  ctx.fillText('CONTROLS', col2x, 270);
   ctx.fillStyle = '#aaa';
   ctx.font = '13px Rajdhani';
-  const rules2 = ['+3  BLIND pocket (total dark)','+ 2 SHADOW pocket (ghost zone)','+1  LIT pocket (illuminated)','-1  SCRATCH (cue pocketed)','7 rounds, highest score wins'];
+  const rules2 = ['Mouse drag — aim direction','Hold button — charge power','Release — shoot','ESC — pause | T — tutorial'];
   rules2.forEach((r,i) => ctx.fillText(r, col2x, 292 + i*20));
 
   // Flash text
@@ -1623,8 +1652,7 @@ function drawMenu(t) {
 
   ctx.fillStyle = '#555';
   ctx.font = '12px Rajdhani';
-  ctx.fillText('ESC = Pause  |  C = Color-blind mode', C.W/2, 490);
-  ctx.fillText('EA Game Jam 2025', C.W/2, 520);
+  ctx.fillText('vs AI · 7 Rounds · First to most points wins', C.W/2, 490);
 }
 
 function drawCountdown(t) {
@@ -1666,18 +1694,20 @@ function drawEndScreen(t) {
   ctx.fillStyle = 'rgba(5,5,8,0.4)';
   ctx.fillRect(0, 0, C.W, C.H);
 
-  // Winner
-  const winner = playerScore > aiScore ? 'YOU WIN!' :
-                 aiScore > playerScore ? 'AI WINS!' : 'DRAW!';
-  const winColor = playerScore > aiScore ? '#00e5ff' :
-                   aiScore > playerScore ? '#ff4466' : '#ffd700';
+  // Winner text per spec
+  const diff = playerScore - aiScore;
+  let winner, winColor;
+  if (diff >= 3) { winner = 'YOU WIN — MASTER OF SHADOWS'; winColor = '#00e5ff'; }
+  else if (diff >= 1) { winner = 'YOU WIN — CLOSE GAME'; winColor = '#00e5ff'; }
+  else if (diff <= -1) { winner = 'AI WINS — PRACTICE MORE'; winColor = '#ff4466'; }
+  else { winner = 'DEAD EVEN — WELL PLAYED'; winColor = '#ffd700'; }
 
   ctx.fillStyle = winColor;
-  ctx.font = 'bold 56px Orbitron';
+  ctx.font = 'bold 36px Orbitron';
   ctx.textAlign = 'center';
   ctx.shadowColor = winColor;
   ctx.shadowBlur = 30;
-  ctx.fillText(winner, C.W/2, 160);
+  ctx.fillText(winner, C.W/2, 150);
   ctx.shadowBlur = 0;
 
   // Scores
@@ -1884,6 +1914,65 @@ function drawScene(t) {
   drawReconBeams(t);
   drawPopups();
   drawHUD();
+  drawRoundTransition();
+  drawFirstShotCoach(t);
+}
+
+function drawRoundTransition() {
+  if (!roundTransMsg || roundTransMsg.timer <= 0) return;
+  const progress = roundTransMsg.timer / roundTransMsg.maxTimer;
+  const fadeIn = Math.min(1, (1 - progress) * 4); // quick fade in
+  const fadeOut = Math.min(1, progress * 4); // quick fade out
+  const alpha = Math.min(fadeIn, fadeOut);
+  ctx.save();
+  ctx.globalAlpha = alpha;
+  ctx.fillStyle = roundTransMsg.color;
+  ctx.font = roundTransMsg.text === 'LAST SHOT' ? 'bold 44px Orbitron' : 'bold 32px Orbitron';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.shadowColor = roundTransMsg.color;
+  ctx.shadowBlur = 20;
+  ctx.fillText(roundTransMsg.text, FELT_CX, FELT_CY);
+  ctx.shadowBlur = 0;
+  ctx.restore();
+}
+
+function drawFirstShotCoach(t) {
+  if (!firstShotCoach || currentRound > 1 || currentTurn !== 'PLAYER') return;
+  if (turnPhase !== 'AIM') return;
+  const cue = getCueBall();
+  if (!cue.alive) return;
+
+  if (!dragging) {
+    // Pulsing arrow pointing at cue ball
+    const bounce = Math.sin(t * 0.005) * 8;
+    const ax = cue.x, ay = cue.y - 30 + bounce;
+    ctx.save();
+    ctx.strokeStyle = '#00e5ff';
+    ctx.lineWidth = 3;
+    ctx.shadowColor = '#00e5ff';
+    ctx.shadowBlur = 12;
+    ctx.beginPath();
+    ctx.moveTo(ax, ay);
+    ctx.lineTo(ax, ay + 15);
+    ctx.moveTo(ax - 6, ay + 8);
+    ctx.lineTo(ax, ay + 15);
+    ctx.lineTo(ax + 6, ay + 8);
+    ctx.stroke();
+    ctx.shadowBlur = 0;
+    // Text bubble
+    ctx.fillStyle = 'rgba(0,0,0,0.75)';
+    ctx.strokeStyle = 'rgba(0,229,255,0.6)';
+    ctx.lineWidth = 1;
+    const tw = 160, th = 24;
+    ctx.fillRect(ax - tw/2, ay - th - 8, tw, th);
+    ctx.strokeRect(ax - tw/2, ay - th - 8, tw, th);
+    ctx.fillStyle = '#fff';
+    ctx.font = '13px Rajdhani';
+    ctx.textAlign = 'center';
+    ctx.fillText('DRAG FROM BALL TO AIM', ax, ay - th + 8);
+    ctx.restore();
+  }
 }
 
 // ===== INPUT =====
@@ -1924,6 +2013,18 @@ canvas.addEventListener('mousemove', (e) => {
   const scaleY = C.H / rect.height;
   mouseX = (e.clientX - rect.left) * scaleX;
   mouseY = (e.clientY - rect.top) * scaleY;
+  // Dynamic cursor
+  if (gameState === 'PLAYING' && turnPhase === 'AIM' && currentTurn === 'PLAYER') {
+    if (mouseX >= 15 && mouseX <= 95 && mouseY >= 15 && mouseY <= 45) {
+      canvas.style.cursor = 'pointer';
+    } else {
+      canvas.style.cursor = 'crosshair';
+    }
+  } else if (gameState === 'PLAYING' && turnPhase === 'ROLLING') {
+    canvas.style.cursor = 'default';
+  } else {
+    canvas.style.cursor = 'default';
+  }
 });
 
 canvas.addEventListener('mouseup', (e) => {
@@ -2069,6 +2170,14 @@ function update(dt) {
   for (const b of balls) {
     if (b.alive) updateSquash(b, dt);
   }
+
+  // Round transition message timer
+  if (roundTransMsg && roundTransMsg.timer > 0) {
+    roundTransMsg.timer -= dt * 1000;
+  }
+
+  // First shot coach disable after first drag
+  if (firstShotCoach && dragging) { firstShotCoach = false; }
 }
 
 function draw(t) {
