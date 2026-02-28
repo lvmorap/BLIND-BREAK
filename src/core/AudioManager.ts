@@ -157,6 +157,7 @@ class AudioManager {
       master.connect(ctx.destination);
       this.musicGains.push(master);
 
+      // Oscillators/gains are tracked in musicNodes/musicGains for cleanup in stopGameMusic()
       const makeOsc = (type: OscillatorType, freq: number, vol: number): void => {
         const o = ctx.createOscillator();
         o.type = type;
