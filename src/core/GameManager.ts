@@ -58,6 +58,8 @@ export class GameManager {
 
   private resultTimer: number = 0;
   private resultWinner: 1 | 2 | null = null;
+  private resultScoreScale: number = 1;
+  private resultParticlesFired: boolean = false;
   private shakeOffset: { ox: number; oy: number } = { ox: 0, oy: 0 };
   private lastDt: number = 0;
 
@@ -198,6 +200,18 @@ export class GameManager {
     this.hud.setScores(this.p1Score, this.p2Score);
     audioManager.playScore();
 
+    // Score flash tween
+    this.resultScoreScale = 1.8;
+    this.tweenManager.clear();
+    this.tweenManager.add(
+      Tween.create(1.8, 1, 0.6, easeOutElastic, (v: number): void => {
+        this.resultScoreScale = v;
+      }),
+    );
+
+    // Particle burst will fire on first render frame
+    this.resultParticlesFired = false;
+
     if (this.currentGame) {
       this.currentGame.destroy();
       this.currentGame = null;
@@ -307,6 +321,7 @@ export class GameManager {
 
   private updateRoundResult(dt: number): void {
     this.resultTimer += dt;
+    this.tweenManager.update(dt);
     if (this.resultTimer >= 3) {
       this.currentRoundIndex++;
       if (this.currentRoundIndex < this.gameOrder.length) {
@@ -398,9 +413,26 @@ export class GameManager {
     ctx.restore();
   }
 
+  private readonly roundFlavorLines: string[] = [
+    'The Nexari consul nods approvingly.',
+    "Earth's honor remains intact... for now.",
+    'A ripple moves through the assembled alien fleet.',
+    'The arena logs your performance for future use.',
+  ];
+  private roundFlavorIndex: number = Math.floor(Math.random() * this.roundFlavorLines.length);
+
   private renderRoundResult(ctx: CanvasRenderingContext2D): void {
     const w = ctx.canvas.width;
     const h = ctx.canvas.height;
+
+    // Fire particle burst once
+    if (!this.resultParticlesFired) {
+      this.resultParticlesFired = true;
+      const burstColor =
+        this.resultWinner === 1 ? '#00e5ff' : this.resultWinner === 2 ? '#ff4466' : '#e0d5c0';
+      particleSystem.burst(w / 2, h / 2, 20, burstColor);
+      this.roundFlavorIndex = Math.floor(Math.random() * this.roundFlavorLines.length);
+    }
 
     ctx.fillStyle = 'rgba(5, 5, 8, 0.92)';
     ctx.fillRect(0, 0, w, h);
@@ -421,9 +453,23 @@ export class GameManager {
       ctx.fillText('DRAW!', w / 2, h / 2 - 20);
     }
 
+    // Nexari flavor text
+    ctx.save();
+    ctx.globalAlpha = 0.7;
+    ctx.font = '400 15px Rajdhani, sans-serif';
+    ctx.fillStyle = '#e0d5c0';
+    const flavorLine = this.roundFlavorLines[this.roundFlavorIndex] ?? this.roundFlavorLines[0]!;
+    ctx.fillText(flavorLine, w / 2, h / 2 + 12);
+    ctx.restore();
+
+    // Score with scale animation
+    ctx.save();
+    ctx.translate(w / 2, h / 2 + 40);
+    ctx.scale(this.resultScoreScale, this.resultScoreScale);
     ctx.font = '700 36px Orbitron, sans-serif';
     ctx.fillStyle = '#ffffff';
-    ctx.fillText(`${this.p1Score} - ${this.p2Score}`, w / 2, h / 2 + 40);
+    ctx.fillText(`${this.p1Score} - ${this.p2Score}`, 0, 0);
+    ctx.restore();
 
     this.hud.render(ctx);
   }

@@ -13,11 +13,21 @@ export class EndScreen {
   private p2Score: number;
   private rounds: RoundResult[];
   private elapsed: number = 0;
+  private nexariMessage: string;
+
+  private static readonly NEXARI_MESSAGES: string[] = [
+    'Your combat data has been archived in the Nexus Codex.',
+    'Seven galaxies witnessed your performance today.',
+    'The Arena remembers. The Arena adapts.',
+  ];
 
   constructor(p1Score: number, p2Score: number, rounds: RoundResult[]) {
     this.p1Score = p1Score;
     this.p2Score = p2Score;
     this.rounds = rounds;
+    this.nexariMessage =
+      EndScreen.NEXARI_MESSAGES[Math.floor(Math.random() * EndScreen.NEXARI_MESSAGES.length)] ??
+      EndScreen.NEXARI_MESSAGES[0]!;
   }
 
   update(dt: number): void {
@@ -51,6 +61,14 @@ export class EndScreen {
       ctx.fillStyle = '#ffffff';
       ctx.fillText("IT'S A TIE!", w / 2, 120);
     }
+
+    // Nexari lore message
+    ctx.save();
+    ctx.globalAlpha = 0.6;
+    ctx.font = '400 14px Rajdhani, sans-serif';
+    ctx.fillStyle = '#aabbcc';
+    ctx.fillText(this.nexariMessage, w / 2, 148);
+    ctx.restore();
 
     // Final scores
     ctx.font = '700 64px Orbitron, sans-serif';
