@@ -117,46 +117,131 @@ export function drawTable(): void {
   // Black hole pockets
   for (const pk of POCKETS) {
     const bhT = performance.now() * 0.003;
-    const bhPulse = 0.7 + 0.3 * Math.sin(bhT + pk.x * 0.01);
+    const bhPulse = 0.6 + 0.4 * Math.sin(bhT + pk.x * 0.01);
+    const slowSpin = bhT * 0.3;
+    const seed = pk.x * 7 + pk.y * 13;
+    const horizonR = pk.r + 2;
+    const diskR = pk.r + 18;
 
-    // Accretion disk glow
-    const diskR = pk.r + 8;
+    // Hawking radiation halo
+    const hawkR = pk.r + 28;
+    const hg = ctx.createRadialGradient(pk.x, pk.y, pk.r, pk.x, pk.y, hawkR);
+    hg.addColorStop(0, `rgba(180,140,255,${0.06 * bhPulse})`);
+    hg.addColorStop(0.4, `rgba(100,60,200,${0.03 * bhPulse})`);
+    hg.addColorStop(1, 'rgba(60,20,120,0)');
+    ctx.fillStyle = hg;
+    ctx.beginPath();
+    ctx.arc(pk.x, pk.y, hawkR, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Gravitational lensing distortion rings
+    for (let ring = 0; ring < 4; ring++) {
+      const ringR = pk.r + 6 + ring * 5;
+      const ringAlpha = (0.12 - ring * 0.025) * bhPulse;
+      const wobble = Math.sin(bhT * 0.7 + ring * 1.5) * 1.5;
+      ctx.strokeStyle = `rgba(${130 - ring * 15},${70 + ring * 10},${210 - ring * 10},${ringAlpha})`;
+      ctx.lineWidth = 1.2 - ring * 0.15;
+      ctx.beginPath();
+      ctx.ellipse(pk.x + wobble, pk.y + wobble * 0.5, ringR, ringR * (0.85 + ring * 0.03), slowSpin * 0.2 + ring * 0.4, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+
+    // Accretion disk layer 1 — hot orange outer
     ctx.save();
     ctx.translate(pk.x, pk.y);
-    ctx.rotate(bhT * 0.5);
-    const dg = ctx.createRadialGradient(0, 0, pk.r * 0.3, 0, 0, diskR);
-    dg.addColorStop(0, 'rgba(0,0,0,0)');
-    dg.addColorStop(0.4, `rgba(120,60,200,${0.15 * bhPulse})`);
-    dg.addColorStop(0.7, `rgba(200,100,255,${0.1 * bhPulse})`);
-    dg.addColorStop(1, 'rgba(200,100,255,0)');
-    ctx.fillStyle = dg;
+    ctx.rotate(slowSpin);
+    const dg1 = ctx.createRadialGradient(0, 0, pk.r * 0.5, 0, 0, diskR);
+    dg1.addColorStop(0, 'rgba(0,0,0,0)');
+    dg1.addColorStop(0.3, `rgba(255,140,40,${0.1 * bhPulse})`);
+    dg1.addColorStop(0.6, `rgba(255,100,20,${0.07 * bhPulse})`);
+    dg1.addColorStop(1, 'rgba(255,80,0,0)');
+    ctx.fillStyle = dg1;
     ctx.beginPath();
-    ctx.ellipse(0, 0, diskR, diskR * 0.6, 0, 0, Math.PI * 2);
+    ctx.ellipse(0, 0, diskR, diskR * 0.45, 0, 0, Math.PI * 2);
     ctx.fill();
     ctx.restore();
 
-    // Event horizon
-    ctx.fillStyle = '#000008';
+    // Accretion disk layer 2 — blue-white inner
+    ctx.save();
+    ctx.translate(pk.x, pk.y);
+    ctx.rotate(-slowSpin * 1.3);
+    const dg2 = ctx.createRadialGradient(0, 0, pk.r * 0.2, 0, 0, diskR * 0.75);
+    dg2.addColorStop(0, 'rgba(0,0,0,0)');
+    dg2.addColorStop(0.35, `rgba(180,200,255,${0.12 * bhPulse})`);
+    dg2.addColorStop(0.65, `rgba(140,170,255,${0.08 * bhPulse})`);
+    dg2.addColorStop(1, 'rgba(100,140,255,0)');
+    ctx.fillStyle = dg2;
     ctx.beginPath();
-    ctx.arc(pk.x, pk.y, pk.r, 0, Math.PI * 2);
+    ctx.ellipse(0, 0, diskR * 0.75, diskR * 0.35, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+
+    // Accretion disk layer 3 — purple mid-layer
+    ctx.save();
+    ctx.translate(pk.x, pk.y);
+    ctx.rotate(slowSpin * 0.8 + 1.0);
+    const dg3 = ctx.createRadialGradient(0, 0, pk.r * 0.4, 0, 0, diskR * 0.9);
+    dg3.addColorStop(0, 'rgba(0,0,0,0)');
+    dg3.addColorStop(0.3, `rgba(160,60,220,${0.09 * bhPulse})`);
+    dg3.addColorStop(0.7, `rgba(200,100,255,${0.06 * bhPulse})`);
+    dg3.addColorStop(1, 'rgba(180,80,240,0)');
+    ctx.fillStyle = dg3;
+    ctx.beginPath();
+    ctx.ellipse(0, 0, diskR * 0.9, diskR * 0.5, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+
+    // Spinning particle streams
+    for (let i = 0; i < 10; i++) {
+      const angle = bhT * (1.2 + i * 0.15) + (seed + i) * 2.39996;
+      const orbitR = pk.r + 4 + (i % 3) * 5 + Math.sin(bhT + i) * 2;
+      const px = pk.x + Math.cos(angle) * orbitR;
+      const py = pk.y + Math.sin(angle) * orbitR * 0.55;
+      const pAlpha = (0.5 + 0.5 * Math.sin(bhT * 2 + i)) * bhPulse;
+      const pSize = 0.6 + (i % 3) * 0.4;
+      const colors = ['255,180,80', '180,200,255', '200,120,255'];
+      ctx.fillStyle = `rgba(${colors[i % 3]},${pAlpha * 0.7})`;
+      ctx.beginPath();
+      ctx.arc(px, py, pSize, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    // Event horizon (solid black center, slightly larger)
+    ctx.fillStyle = '#000004';
+    ctx.beginPath();
+    ctx.arc(pk.x, pk.y, horizonR, 0, Math.PI * 2);
     ctx.fill();
 
-    // Inner glow ring
-    ctx.strokeStyle = `rgba(160,80,255,${0.4 * bhPulse})`;
-    ctx.lineWidth = 2;
-    ctx.shadowColor = '#aa44ff';
-    ctx.shadowBlur = 12;
+    // Inner glow ring — primary
+    ctx.strokeStyle = `rgba(180,100,255,${0.5 * bhPulse})`;
+    ctx.lineWidth = 2.5;
+    ctx.shadowColor = '#bb55ff';
+    ctx.shadowBlur = 18;
     ctx.beginPath();
-    ctx.arc(pk.x, pk.y, pk.r + 1, 0, Math.PI * 2);
+    ctx.arc(pk.x, pk.y, horizonR + 1, 0, Math.PI * 2);
     ctx.stroke();
     ctx.shadowBlur = 0;
 
-    // Gravitational lensing rings
-    ctx.strokeStyle = `rgba(100,60,180,${0.15 * bhPulse})`;
-    ctx.lineWidth = 1;
+    // Inner glow ring — secondary warm
+    ctx.strokeStyle = `rgba(255,160,60,${0.2 * bhPulse})`;
+    ctx.lineWidth = 1.5;
+    ctx.shadowColor = '#ff8830';
+    ctx.shadowBlur = 10;
     ctx.beginPath();
-    ctx.arc(pk.x, pk.y, pk.r + 6, 0, Math.PI * 2);
+    ctx.arc(pk.x, pk.y, horizonR + 3, 0, Math.PI * 2);
     ctx.stroke();
+    ctx.shadowBlur = 0;
+
+    // Pulsing outer glow
+    const pulseGlowR = pk.r + 14 + Math.sin(bhT * 1.5 + seed) * 3;
+    const pg = ctx.createRadialGradient(pk.x, pk.y, horizonR, pk.x, pk.y, pulseGlowR);
+    pg.addColorStop(0, `rgba(160,80,255,${0.15 * bhPulse})`);
+    pg.addColorStop(0.5, `rgba(120,60,200,${0.06 * bhPulse})`);
+    pg.addColorStop(1, 'rgba(100,40,180,0)');
+    ctx.fillStyle = pg;
+    ctx.beginPath();
+    ctx.arc(pk.x, pk.y, pulseGlowR, 0, Math.PI * 2);
+    ctx.fill();
   }
 }
 
