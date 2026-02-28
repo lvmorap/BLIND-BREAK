@@ -17,11 +17,7 @@ export function drawHUD(): void {
   ctx.fillText('PLAYER', 20, C.H - 55);
   ctx.fillStyle = '#557788';
   ctx.font = '11px Rajdhani';
-  ctx.fillText(
-    `Blind:${state.endStats.player.blind} Shd:${state.endStats.player.shadow} Lit:${state.endStats.player.lit}`,
-    20,
-    C.H - 68,
-  );
+  ctx.fillText(`Pocketed: ${state.endStats.player.lit}`, 20, C.H - 68);
 
   ctx.fillStyle = C.AI_COLOR;
   ctx.font = 'bold 48px Orbitron';
@@ -37,11 +33,7 @@ export function drawHUD(): void {
   ctx.fillText('AI', C.W - 20, C.H - 55);
   ctx.fillStyle = '#885566';
   ctx.font = '11px Rajdhani';
-  ctx.fillText(
-    `Blind:${state.endStats.ai.blind} Shd:${state.endStats.ai.shadow} Lit:${state.endStats.ai.lit}`,
-    C.W - 20,
-    C.H - 68,
-  );
+  ctx.fillText(`Pocketed: ${state.endStats.ai.lit}`, C.W - 20, C.H - 68);
 
   ctx.fillStyle = '#888';
   ctx.font = 'bold 16px Orbitron';
@@ -427,33 +419,4 @@ export function drawFirstShotCoach(t: number): void {
     ctx.fillText('DRAG FROM BALL TO AIM', ax, ay - th + 8);
     ctx.restore();
   }
-}
-
-export function drawScoringReminder(t: number): void {
-  if (!state.scoringReminder || state.scoringReminder.timer <= 0) return;
-  const sr = state.scoringReminder;
-  const alpha = Math.min(1, sr.timer / 500) * Math.min(1, (sr.maxTimer - sr.timer) / 300);
-  const bx = sr.x + 30;
-  const by = sr.y - 30;
-  ctx.save();
-  ctx.globalAlpha = alpha;
-  const dashPulse = 0.4 + 0.6 * Math.abs(Math.sin(t * 0.004));
-  ctx.strokeStyle = `rgba(255,215,0,${dashPulse * alpha})`;
-  ctx.setLineDash([4, 4]);
-  ctx.lineWidth = 1;
-  ctx.beginPath();
-  ctx.moveTo(sr.x, sr.y);
-  ctx.lineTo(bx, by);
-  ctx.stroke();
-  ctx.setLineDash([]);
-  ctx.fillStyle = 'rgba(10,10,15,0.85)';
-  ctx.fillRect(bx, by - 14, 140, 28);
-  ctx.strokeStyle = 'rgba(255,215,0,0.5)';
-  ctx.lineWidth = 1;
-  ctx.strokeRect(bx, by - 14, 140, 28);
-  ctx.fillStyle = '#ffd700';
-  ctx.font = 'bold 13px Rajdhani';
-  ctx.textAlign = 'left';
-  ctx.fillText('SHOOT BLIND → 3 PTS ⚡', bx + 6, by + 5);
-  ctx.restore();
 }

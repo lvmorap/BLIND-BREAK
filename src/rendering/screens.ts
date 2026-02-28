@@ -3,51 +3,87 @@ import { state } from '../core/state.ts';
 import { ctx } from './canvas.ts';
 import { drawBrickWall, drawWallSconces, drawTable, drawLamps, drawNeonSign } from './table.ts';
 import { drawBalls } from './balls.ts';
-import { drawDarkness } from './darkness.ts';
 import { drawScene } from './scene.ts';
 
+let heroImg: HTMLImageElement | null = null;
+let heroLoaded = false;
+
+function loadHeroImage(): void {
+  if (heroImg) return;
+  heroImg = new Image();
+  heroImg.onload = (): void => {
+    heroLoaded = true;
+  };
+  heroImg.src = './assets/hero-billiards.svg';
+}
+
+loadHeroImage();
+
 export function drawMenu(t: number): void {
-  drawBrickWall();
-  drawWallSconces();
-  drawTable();
-  drawLamps();
-  drawDarkness();
-  drawNeonSign(t);
+  ctx.fillStyle = '#050508';
+  ctx.fillRect(0, 0, C.W, C.H);
+
+  if (heroLoaded && heroImg) {
+    ctx.save();
+    ctx.globalAlpha = 0.35;
+    const imgW = C.W;
+    const imgH = (heroImg.height / heroImg.width) * imgW;
+    const imgY = (C.H - imgH) / 2;
+    ctx.drawImage(heroImg, 0, imgY, imgW, imgH);
+    ctx.globalAlpha = 1;
+    ctx.restore();
+  }
+
+  const vigGrad = ctx.createRadialGradient(C.W / 2, C.H / 2, 80, C.W / 2, C.H / 2, C.W * 0.55);
+  vigGrad.addColorStop(0, 'rgba(5,5,8,0)');
+  vigGrad.addColorStop(1, 'rgba(5,5,8,0.85)');
+  ctx.fillStyle = vigGrad;
+  ctx.fillRect(0, 0, C.W, C.H);
 
   ctx.save();
   ctx.globalAlpha = state.neonFlicker;
-  ctx.font = 'bold 54px Orbitron';
+  ctx.font = 'bold 60px Orbitron';
   ctx.textAlign = 'center';
   ctx.shadowColor = C.NEON_COLOR;
-  ctx.shadowBlur = 40;
+  ctx.shadowBlur = 50;
   ctx.fillStyle = C.NEON_COLOR;
-  ctx.fillText('BLIND BREAK', C.W / 2, 180);
+  ctx.fillText('BLIND BREAK', C.W / 2, 160);
+  ctx.shadowBlur = 25;
+  ctx.fillText('BLIND BREAK', C.W / 2, 160);
   ctx.shadowBlur = 0;
   ctx.restore();
 
   ctx.fillStyle = '#888';
-  ctx.font = '16px Rajdhani';
+  ctx.font = '18px Rajdhani';
   ctx.textAlign = 'center';
-  ctx.fillText('Billiards in the Dark', C.W / 2, 210);
+  ctx.fillText('Billiards in the Dark', C.W / 2, 192);
+
+  ctx.strokeStyle = 'rgba(255,51,102,0.15)';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(C.W / 2 - 140, 210);
+  ctx.lineTo(C.W / 2 + 140, 210);
+  ctx.stroke();
 
   const col1x = C.W / 2 - 170;
   const col2x = C.W / 2 + 170;
+
   ctx.font = 'bold 14px Rajdhani';
   ctx.fillStyle = '#00e5ff';
-  ctx.fillText('THE RULES', col1x, 270);
+  ctx.fillText('THE RULES', col1x, 260);
   ctx.fillStyle = '#aaa';
   ctx.font = '13px Rajdhani';
   const rules1 = [
-    'Your shot is your only light',
-    'What you reveal, they see too',
-    'Ghosts show where balls were',
-    'Pocket in darkness. Score triple.',
+    'The table is always in darkness',
+    'Your shot reveals the cue ball path',
+    'Use RECON once to see everything',
+    '+1 point per ball pocketed',
   ];
-  rules1.forEach((r, i) => ctx.fillText(r, col1x, 292 + i * 20));
+  rules1.forEach((r, i) => ctx.fillText(r, col1x, 282 + i * 20));
 
   ctx.font = 'bold 14px Rajdhani';
   ctx.fillStyle = '#ffd700';
-  ctx.fillText('CONTROLS', col2x, 270);
+  ctx.fillText('CONTROLS', col2x, 260);
   ctx.fillStyle = '#aaa';
   ctx.font = '13px Rajdhani';
   const rules2 = [
@@ -56,22 +92,32 @@ export function drawMenu(t: number): void {
     'Release — shoot',
     'ESC — pause | T — tutorial',
   ];
-  rules2.forEach((r, i) => ctx.fillText(r, col2x, 292 + i * 20));
+  rules2.forEach((r, i) => ctx.fillText(r, col2x, 282 + i * 20));
 
   const flash = 0.5 + 0.5 * Math.sin(t * 0.004);
   ctx.fillStyle = `rgba(255,255,255,${flash})`;
-  ctx.font = 'bold 20px Orbitron';
+  ctx.font = 'bold 22px Orbitron';
   ctx.textAlign = 'center';
-  ctx.fillText('PRESS SPACE TO BEGIN', C.W / 2, 460);
+  ctx.fillText('PRESS SPACE TO BEGIN', C.W / 2, 430);
 
   ctx.fillStyle = '#555';
-  ctx.font = '12px Rajdhani';
-  ctx.fillText('vs AI · 7 Rounds · First to most points wins', C.W / 2, 490);
+  ctx.font = '13px Rajdhani';
+  ctx.fillText('vs AI · 7 Rounds · First to most points wins', C.W / 2, 460);
 
   ctx.fillStyle = 'rgba(200,200,200,0.35)';
   ctx.font = '13px Rajdhani';
   ctx.textAlign = 'right';
   ctx.fillText('? TUTORIAL', C.W - 18, 28);
+
+  const base = 0.85 + 0.15 * Math.sin((t * 2 * Math.PI) / 3700);
+  let flick = base;
+  if (state.neonDropTimer > 0) {
+    flick = 0.3;
+    state.neonDropTimer -= 16;
+  } else if (Math.random() < 0.003) {
+    state.neonDropTimer = 80;
+  }
+  state.neonFlicker = flick;
 }
 
 export function drawCountdown(t: number): void {
@@ -158,13 +204,13 @@ export function drawEndScreen(t: number): void {
   ctx.font = '15px Rajdhani';
   ctx.textAlign = 'center';
   ctx.fillText(
-    `Player — Blind: ${state.endStats.player.blind}  Shadow: ${state.endStats.player.shadow}  Lit: ${state.endStats.player.lit}  Scratches: ${state.endStats.player.scratches}`,
+    `Player — Pocketed: ${state.endStats.player.lit}  Scratches: ${state.endStats.player.scratches}`,
     C.W / 2,
     320,
   );
   ctx.fillStyle = '#cc8899';
   ctx.fillText(
-    `AI — Blind: ${state.endStats.ai.blind}  Shadow: ${state.endStats.ai.shadow}  Lit: ${state.endStats.ai.lit}  Scratches: ${state.endStats.ai.scratches}`,
+    `AI — Pocketed: ${state.endStats.ai.lit}  Scratches: ${state.endStats.ai.scratches}`,
     C.W / 2,
     345,
   );
@@ -229,6 +275,7 @@ export function drawTutorial(t: number): void {
   const step = state.tutorialStep;
   const cx = C.W / 2;
   const cy = C.H / 2;
+  const totalSteps = C.TUTORIAL_STEPS;
 
   ctx.save();
   ctx.globalCompositeOperation = 'destination-out';
@@ -245,10 +292,10 @@ export function drawTutorial(t: number): void {
 
   const captions = [
     'Drag to aim. Hold to charge power.',
-    "The table is dark. You can't see what you can't reach.",
-    'Rolling reveals. Everything you light, they see too.',
-    'Ghosts fade. They remember where — not where it went.',
-    'Score: +1 Lit  |  +2 Shadow  |  +3 Blind',
+    'The table is always in darkness.',
+    'The cue ball lights up only while rolling.',
+    'Use RECON once to reveal everything.',
+    '+1 point per ball pocketed.',
   ];
 
   ctx.fillText(captions[step] ?? '', cx, cy + 140);
@@ -282,49 +329,53 @@ export function drawTutorial(t: number): void {
     ctx.fillRect(cx - 200, cy - 120, 400, 240);
   } else if (step === 2) {
     const bx = cx - 100 + (state.tutorialAnim % 4) * 50;
-    ctx.fillStyle = '#ff8800';
+    ctx.fillStyle = '#f5f0e8';
     ctx.beginPath();
     ctx.arc(bx, cy, C.BALL_R, 0, Math.PI * 2);
     ctx.fill();
-    for (let i = 0; i < 5; i++) {
-      const tx = bx - i * 15;
-      ctx.fillStyle = `rgba(255,136,0,${0.1 - i * 0.015})`;
-      ctx.beginPath();
-      ctx.arc(tx, cy, 20, 0, Math.PI * 2);
-      ctx.fill();
-    }
+    const glowR = 48;
+    const glow = ctx.createRadialGradient(bx, cy, 0, bx, cy, glowR);
+    glow.addColorStop(0, 'rgba(255,255,255,0.15)');
+    glow.addColorStop(1, 'rgba(255,255,255,0)');
+    ctx.fillStyle = glow;
+    ctx.beginPath();
+    ctx.arc(bx, cy, glowR, 0, Math.PI * 2);
+    ctx.fill();
   } else if (step === 3) {
-    const ghostAlphas = [0.15, 0.1, 0.05];
-    for (let i = 0; i < 3; i++) {
-      ctx.strokeStyle = `rgba(255,255,255,${ghostAlphas[i]})`;
-      ctx.lineWidth = 1.5;
+    ctx.strokeStyle = 'rgba(0,229,255,0.6)';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(cx, cy, 60, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.fillStyle = '#00e5ff';
+    ctx.font = 'bold 14px Orbitron';
+    ctx.fillText('RECON', cx, cy + 5);
+    const scanAngle = state.tutorialAnim * 2;
+    for (let i = -1; i <= 1; i++) {
+      const a = scanAngle + (i * Math.PI) / 6;
+      ctx.strokeStyle = `rgba(0,229,255,${0.3 + 0.2 * Math.sin(state.tutorialAnim * 3)})`;
+      ctx.lineWidth = 3;
       ctx.beginPath();
-      ctx.arc(cx - 60 + i * 60, cy, C.BALL_R, 0, Math.PI * 2);
+      ctx.moveTo(cx, cy);
+      ctx.lineTo(cx + Math.cos(a) * 80, cy + Math.sin(a) * 80);
       ctx.stroke();
-      ctx.fillStyle = '#555';
-      ctx.font = '10px Rajdhani';
-      ctx.fillText(`Round -${i}`, cx - 60 + i * 60, cy + 25);
     }
   } else if (step === 4) {
-    const scenarios = [
-      { x: cx - 140, label: '+1 LIT', color: '#00cc55', bg: 'rgba(255,255,200,0.1)' },
-      { x: cx, label: '+2 SHADOW', color: '#dddddd', bg: 'rgba(200,200,255,0.05)' },
-      { x: cx + 140, label: '+3 BLIND!', color: '#ffd700', bg: 'rgba(5,5,8,0.5)' },
-    ];
-    for (const s of scenarios) {
-      ctx.fillStyle = s.bg;
-      ctx.fillRect(s.x - 45, cy - 40, 90, 60);
-      ctx.fillStyle = s.color;
-      ctx.font = 'bold 16px Orbitron';
-      ctx.fillText(s.label, s.x, cy);
-    }
+    ctx.fillStyle = 'rgba(0,0,0,0.3)';
+    ctx.fillRect(cx - 80, cy - 40, 160, 60);
+    ctx.fillStyle = '#00cc55';
+    ctx.font = 'bold 28px Orbitron';
+    ctx.fillText('+1', cx, cy);
+    ctx.fillStyle = '#aaa';
+    ctx.font = '14px Rajdhani';
+    ctx.fillText('per ball pocketed', cx, cy + 20);
   }
 
   const dotY = cy + 166;
   const dotSpacing = 20;
-  const totalDotsW = (C.TUTORIAL_STEPS - 1) * dotSpacing;
+  const totalDotsW = (totalSteps - 1) * dotSpacing;
   const dotStartX = cx - totalDotsW / 2;
-  for (let i = 0; i < C.TUTORIAL_STEPS; i++) {
+  for (let i = 0; i < totalSteps; i++) {
     const dx = dotStartX + i * dotSpacing;
     const isActive = i === step;
     ctx.fillStyle = isActive ? '#00e5ff' : '#444';
@@ -335,7 +386,7 @@ export function drawTutorial(t: number): void {
 
   ctx.fillStyle = '#555';
   ctx.font = '14px Rajdhani';
-  ctx.fillText(`${step + 1} / ${C.TUTORIAL_STEPS}`, cx, cy + 186);
+  ctx.fillText(`${step + 1} / ${totalSteps}`, cx, cy + 186);
 
   const flash = 0.5 + 0.5 * Math.sin(t * 0.005);
   ctx.fillStyle = `rgba(255,255,255,${flash})`;

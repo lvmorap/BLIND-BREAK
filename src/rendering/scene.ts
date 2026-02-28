@@ -2,7 +2,7 @@ import { C } from '../core/constants.ts';
 import { state } from '../core/state.ts';
 import { ctx } from './canvas.ts';
 import { drawBrickWall, drawWallSconces, drawTable, drawLamps, drawNeonSign } from './table.ts';
-import { drawBalls, drawGhostBalls } from './balls.ts';
+import { drawBalls } from './balls.ts';
 import { drawDarkness } from './darkness.ts';
 import {
   drawHUD,
@@ -16,7 +16,6 @@ import {
   drawNumberBouncePopups,
   drawRoundTransition,
   drawFirstShotCoach,
-  drawScoringReminder,
 } from './hud.ts';
 import { drawAIThinking } from '../ai/ai.ts';
 
@@ -36,8 +35,7 @@ export function drawScene(t: number): void {
   ctx.restore();
 
   drawBalls();
-  if (state.gameState === 'PLAYING') drawDarkness();
-  drawGhostBalls();
+  drawDarkness();
   drawParticlesView();
   drawNumberBouncePopups();
   drawNeonSign(t);
@@ -51,7 +49,6 @@ export function drawScene(t: number): void {
   drawHUD();
   drawRoundTransition();
   drawFirstShotCoach(t);
-  drawScoringReminder(t);
 
   const vigAlpha = 0.15 + 0.03 * Math.sin((state.breathTimer * 2 * Math.PI) / 6.5);
   const vig = ctx.createRadialGradient(C.W / 2, C.H / 2, C.W * 0.25, C.W / 2, C.H / 2, C.W * 0.6);

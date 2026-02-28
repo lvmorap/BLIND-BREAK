@@ -115,7 +115,7 @@ export interface LightZone {
 }
 
 /**
- * Ghost ball for showing AI previous shots
+ * Ghost ball (legacy type, no longer used in gameplay)
  */
 export interface GhostBall {
   id: number;

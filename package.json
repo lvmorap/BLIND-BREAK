@@ -16,7 +16,12 @@
     "type": "git",
     "url": "git+https://github.com/lvmorap/BLIND-BREAK.git"
   },
-  "keywords": ["game", "billiards", "canvas", "typescript"],
+  "keywords": [
+    "game",
+    "billiards",
+    "canvas",
+    "typescript"
+  ],
   "author": "",
   "license": "ISC",
   "bugs": {
