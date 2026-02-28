@@ -138,7 +138,12 @@ let aiThinkTimer = 0;
 let aiAimAngle = 0;
 let aiPower = 0;
 let aiScanAnim = 0;
-let endStats = {blindPockets:0,shadowPockets:0,litPockets:0,scratches:0};
+let endStats = {
+  player: {blind:0, shadow:0, lit:0, scratches:0},
+  ai: {blind:0, shadow:0, lit:0, scratches:0}
+};
+let settleTimer = 0;
+let reconBeamAnim = null; // {startTime, angle, duration:800}
 let audioCtx = null;
 let audioInited = false;
 let ambientNode = null;
@@ -199,7 +204,12 @@ function resetGame() {
   playerReconUsed = false;
   aiReconUsed = false;
   aiReconRound = Math.random() < 0.5 ? 3 : 4;
-  endStats = {blindPockets:0,shadowPockets:0,litPockets:0,scratches:0};
+  endStats = {
+    player: {blind:0, shadow:0, lit:0, scratches:0},
+    ai: {blind:0, shadow:0, lit:0, scratches:0}
+  };
+  settleTimer = 0;
+  reconBeamAnim = null;
   power = 0; charging = false; chargeTime = 0;
   reconMode = false;
   aiState = 'IDLE';
@@ -626,7 +636,7 @@ function sinkBall(ball, pocket) {
     // Scratch
     const who = currentTurn === 'PLAYER' ? 'player' : 'ai';
     if (who === 'player') playerScore -= 1; else aiScore -= 1;
-    endStats.scratches++;
+    endStats[who].scratches++;
     addScorePopup(pocket.x, pocket.y, '-1 SCRATCH', '#ff0000', 28);
     triggerShake(8, 250);
     // Red flash handled in draw
@@ -644,6 +654,7 @@ function sinkBall(ball, pocket) {
   }
 
   // Determine score type
+  const statKey = currentTurn === 'PLAYER' ? 'player' : 'ai';
   const lightLevel = getLightLevel(ball.x, ball.y);
   let pts, label, color, size;
   if (lightLevel <= 0.1) {
@@ -653,13 +664,13 @@ function sinkBall(ball, pocket) {
     triggerShake(10, 350);
     timeScale = C.SLOW_MO_SCALE;
     slowMoTimer = C.SLOW_MO_DURATION;
-    endStats.blindPockets++;
+    endStats[statKey].blind++;
   } else if (lightLevel <= 0.5) {
     pts = C.SCORE_SHADOW; label = '+2 SHADOW'; color = '#dddddd'; size = 26;
-    endStats.shadowPockets++;
+    endStats[statKey].shadow++;
   } else {
     pts = C.SCORE_LIT; label = '+1'; color = ball.color; size = 20;
-    endStats.litPockets++;
+    endStats[statKey].lit++;
   }
 
   if (currentTurn === 'PLAYER') playerScore += pts; else aiScore += pts;
@@ -839,17 +850,37 @@ function drawNeonSign(t) {
   }
   neonFlicker = flick;
 
+  const text = 'BLIND BREAK';
+  const nx = C.W/2, ny = TABLE_T - 30;
+
   ctx.save();
   ctx.globalAlpha = neonFlicker;
   ctx.font = 'bold 36px Orbitron';
   ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+
+  // Outer glow layer (large blur)
   ctx.shadowColor = C.NEON_COLOR;
-  ctx.shadowBlur = 40;
-  ctx.fillStyle = C.NEON_COLOR;
-  ctx.fillText('BLIND BREAK', C.W/2, TABLE_T - 30);
-  ctx.shadowBlur = 20;
-  ctx.fillText('BLIND BREAK', C.W/2, TABLE_T - 30);
+  ctx.shadowBlur = 50;
+  ctx.strokeStyle = C.NEON_COLOR;
+  ctx.lineWidth = 5;
+  ctx.strokeText(text, nx, ny);
+  // Second outer pass for stronger bloom
+  ctx.shadowBlur = 30;
+  ctx.strokeText(text, nx, ny);
+
+  // Bright inner neon tube line
+  ctx.shadowBlur = 8;
+  ctx.shadowColor = '#ffaacc';
+  ctx.strokeStyle = '#ffccdd';
+  ctx.lineWidth = 1.5;
+  ctx.strokeText(text, nx, ny);
+
+  // Core white-hot center
   ctx.shadowBlur = 0;
+  ctx.fillStyle = `rgba(255,230,240,${0.5 * neonFlicker})`;
+  ctx.fillText(text, nx, ny);
+
   ctx.restore();
 }
 
@@ -884,6 +915,14 @@ function drawBall(b) {
   ctx.fill();
 
   // Ball body
+  // Glow when illuminated (Issue 6)
+  if (b.id > 0) {
+    const ll = getLightLevel(b.x, b.y);
+    if (ll > 0.3) {
+      ctx.shadowColor = b.color;
+      ctx.shadowBlur = 14;
+    }
+  }
   const bg = ctx.createRadialGradient(-3, -3, 1, 0, 0, C.BALL_R);
   bg.addColorStop(0, lightenColor(b.color, 40));
   bg.addColorStop(0.7, b.color);
@@ -892,6 +931,7 @@ function drawBall(b) {
   ctx.beginPath();
   ctx.arc(0, 0, C.BALL_R, 0, Math.PI*2);
   ctx.fill();
+  ctx.shadowBlur = 0;
 
   // Specular highlight
   const sg = ctx.createRadialGradient(-3, -4, 1, -3, -4, 6);
@@ -1210,26 +1250,72 @@ function fireShot(angle, shotPower) {
 }
 
 function fireRecon(angle) {
-  // 3 fork beams at angle ± 25°
-  const spread = 25 * Math.PI / 180;
-  const beamLength = 300;
-  for (let i = -1; i <= 1; i++) {
-    const a = angle + i * spread;
-    const steps = 30;
-    for (let s = 0; s < steps; s++) {
-      const t = s / steps;
-      const cx = getCueBall().x + Math.cos(a) * beamLength * t;
-      const cy = getCueBall().y + Math.sin(a) * beamLength * t;
-      if (cx > FELT_L && cx < FELT_R && cy > FELT_T && cy < FELT_B) {
-        lightZones.push({x:cx, y:cy, radius:25, createdAtRound:currentRound, intensity:0.7});
+  // Start beam animation before resolving
+  reconBeamAnim = {
+    angle: angle,
+    startTime: performance.now(),
+    duration: 800,
+    cx: getCueBall().x,
+    cy: getCueBall().y
+  };
+  // Delay actual light zone creation until animation finishes
+  setTimeout(() => {
+    const spread = 25 * Math.PI / 180;
+    const beamLength = 300;
+    for (let i = -1; i <= 1; i++) {
+      const a = angle + i * spread;
+      const steps = 30;
+      for (let s = 0; s < steps; s++) {
+        const t = s / steps;
+        const cx = reconBeamAnim.cx + Math.cos(a) * beamLength * t;
+        const cy = reconBeamAnim.cy + Math.sin(a) * beamLength * t;
+        if (cx > FELT_L && cx < FELT_R && cy > FELT_T && cy < FELT_B) {
+          lightZones.push({x:cx, y:cy, radius:25, createdAtRound:currentRound, intensity:0.7});
+        }
       }
     }
+    if (currentTurn === 'PLAYER') playerReconUsed = true;
+    else aiReconUsed = true;
+    reconBeamAnim = null;
+    turnPhase = 'ROLLING';
+    setTimeout(() => { if (turnPhase === 'ROLLING') resolveTurn(); }, 500);
+  }, 800);
+}
+
+function drawReconBeams(t) {
+  if (!reconBeamAnim) return;
+  const elapsed = t - reconBeamAnim.startTime;
+  const progress = Math.min(1, elapsed / reconBeamAnim.duration);
+  const spread = 25 * Math.PI / 180;
+  const beamLength = 300;
+
+  ctx.save();
+  for (let i = -1; i <= 1; i++) {
+    const a = reconBeamAnim.angle + i * spread;
+    const endX = reconBeamAnim.cx + Math.cos(a) * beamLength * progress;
+    const endY = reconBeamAnim.cy + Math.sin(a) * beamLength * progress;
+
+    // Outer glow beam
+    ctx.strokeStyle = `rgba(0,229,255,${0.5 * (1 - progress * 0.4)})`;
+    ctx.lineWidth = 6;
+    ctx.shadowColor = '#00e5ff';
+    ctx.shadowBlur = 20;
+    ctx.beginPath();
+    ctx.moveTo(reconBeamAnim.cx, reconBeamAnim.cy);
+    ctx.lineTo(endX, endY);
+    ctx.stroke();
+
+    // Inner bright beam
+    ctx.strokeStyle = `rgba(255,255,255,${0.8 * (1 - progress * 0.5)})`;
+    ctx.lineWidth = 2;
+    ctx.shadowBlur = 8;
+    ctx.beginPath();
+    ctx.moveTo(reconBeamAnim.cx, reconBeamAnim.cy);
+    ctx.lineTo(endX, endY);
+    ctx.stroke();
   }
-  if (currentTurn === 'PLAYER') playerReconUsed = true;
-  else aiReconUsed = true;
-  turnPhase = 'ROLLING';
-  // Immediately resolve since no ball movement
-  setTimeout(() => { if (turnPhase === 'ROLLING') resolveTurn(); }, 500);
+  ctx.shadowBlur = 0;
+  ctx.restore();
 }
 
 // ===== AI =====
@@ -1255,9 +1341,11 @@ function aiThink() {
   // Find best target
   let bestBall = null;
   let bestScore = -Infinity;
+  let bestAimAngle = 0;
+  let bestPower = 0.4;
   let strategy = 'PROBE';
 
-  // HUNT_LIT: lit balls near pockets
+  // HUNT_LIT: for each lit ball, find best pocket angle
   for (let i = 1; i < balls.length; i++) {
     const b = balls[i];
     if (!b.alive) continue;
@@ -1265,9 +1353,40 @@ function aiThink() {
     if (ll > 0.3) {
       strategy = 'HUNT_LIT';
       for (const pk of POCKETS) {
-        const distSq = (b.x-pk.x)**2+(b.y-pk.y)**2;
-        const score = ll * 10000 - distSq;
-        if (score > bestScore) { bestScore = score; bestBall = b; }
+        const bpDx = pk.x - b.x, bpDy = pk.y - b.y;
+        const bpDist = Math.sqrt(bpDx*bpDx + bpDy*bpDy);
+        const bpAngle = Math.atan2(bpDy, bpDx);
+        // Aim point: offset behind the ball along ball-to-pocket line
+        const aimX = b.x - Math.cos(bpAngle) * C.BALL_R * 2;
+        const aimY = b.y - Math.sin(bpAngle) * C.BALL_R * 2;
+        const cueDx = aimX - cue.x, cueDy = aimY - cue.y;
+        const cueDist = Math.sqrt(cueDx*cueDx + cueDy*cueDy);
+        const aimAngle = Math.atan2(cueDy, cueDx);
+        // Angle between cue approach and ball-to-pocket (lower = straighter)
+        let cutAngle = Math.abs(aimAngle - bpAngle);
+        if (cutAngle > Math.PI) cutAngle = 2*Math.PI - cutAngle;
+        // Check path is roughly clear
+        let pathClear = true;
+        for (let j = 1; j < balls.length; j++) {
+          if (j === i || !balls[j].alive) continue;
+          const ob = balls[j];
+          const toDx = ob.x - cue.x, toDy = ob.y - cue.y;
+          const proj = toDx*Math.cos(aimAngle) + toDy*Math.sin(aimAngle);
+          if (proj > 0 && proj < cueDist) {
+            const perp = Math.abs(-toDx*Math.sin(aimAngle) + toDy*Math.cos(aimAngle));
+            if (perp < C.BALL_R * 2.5) { pathClear = false; break; }
+          }
+        }
+        // Score: prefer close pockets, straight angles, clear paths
+        const score = ll * 100
+          - bpDist * 0.5
+          - cutAngle * 200
+          + (pathClear ? 500 : 0);
+        if (score > bestScore) {
+          bestScore = score; bestBall = b;
+          bestAimAngle = aimAngle;
+          bestPower = Math.min(0.75, Math.max(0.2, cueDist / 400));
+        }
       }
     }
   }
@@ -1288,10 +1407,7 @@ function aiThink() {
   }
 
   if (bestBall) {
-    const angle = Math.atan2(bestBall.y - cue.y, bestBall.x - cue.x);
-    const distSq = (bestBall.x-cue.x)**2+(bestBall.y-cue.y)**2;
-    const power = Math.min(0.7, Math.max(0.2, Math.sqrt(distSq) / 400));
-    fireShot(angle, power);
+    fireShot(bestAimAngle, bestPower);
     aiState = 'IDLE';
     return;
   }
@@ -1343,6 +1459,21 @@ function resolveTurn() {
   lightZones = lightZones.filter(z => (currentRound - z.createdAtRound) <= 2);
   // Prune old ghost balls
   ghostBalls = ghostBalls.filter(g => (currentRound - g.round) <= 2);
+
+  // Ghost tracking: update/create ghosts for balls whose illumination has expired
+  for (let i = 1; i < balls.length; i++) {
+    const b = balls[i];
+    if (!b.alive) continue;
+    const ll = getLightLevel(b.x, b.y);
+    if (ll <= 0.1) {
+      const existing = ghostBalls.find(g => g.id === b.id);
+      if (existing) {
+        existing.x = b.x; existing.y = b.y; existing.round = currentRound;
+      } else {
+        ghostBalls.push({id:b.id, x:b.x, y:b.y, color:b.color, round:currentRound});
+      }
+    }
+  }
 
   // Check end conditions
   if (allObjectBallsSunk() || currentRound > C.ROUNDS) {
@@ -1400,6 +1531,9 @@ function drawHUD() {
   ctx.fillStyle = '#88bbcc';
   ctx.font = '14px Rajdhani';
   ctx.fillText('PLAYER', 20, C.H - 55);
+  ctx.fillStyle = '#557788';
+  ctx.font = '11px Rajdhani';
+  ctx.fillText(`B:${endStats.player.blind} S:${endStats.player.shadow} L:${endStats.player.lit}`, 20, C.H - 68);
 
   // AI score
   ctx.fillStyle = C.AI_COLOR;
@@ -1414,6 +1548,9 @@ function drawHUD() {
   ctx.font = '14px Rajdhani';
   ctx.textAlign = 'right';
   ctx.fillText('AI', C.W - 20, C.H - 55);
+  ctx.fillStyle = '#885566';
+  ctx.font = '11px Rajdhani';
+  ctx.fillText(`B:${endStats.ai.blind} S:${endStats.ai.shadow} L:${endStats.ai.lit}`, C.W - 20, C.H - 68);
 
   // Round
   ctx.fillStyle = '#888';
@@ -1561,9 +1698,12 @@ function drawEndScreen(t) {
   ctx.fillText('AI', C.W/2 + 120, 280);
 
   // Stats
-  ctx.fillStyle = '#aaa';
+  ctx.fillStyle = '#88bbcc';
   ctx.font = '15px Rajdhani';
-  ctx.fillText(`Blind Pockets: ${endStats.blindPockets}  |  Shadow: ${endStats.shadowPockets}  |  Lit: ${endStats.litPockets}  |  Scratches: ${endStats.scratches}`, C.W/2, 330);
+  ctx.textAlign = 'center';
+  ctx.fillText(`Player — Blind: ${endStats.player.blind}  Shadow: ${endStats.player.shadow}  Lit: ${endStats.player.lit}  Scratches: ${endStats.player.scratches}`, C.W/2, 320);
+  ctx.fillStyle = '#cc8899';
+  ctx.fillText(`AI — Blind: ${endStats.ai.blind}  Shadow: ${endStats.ai.shadow}  Lit: ${endStats.ai.lit}  Scratches: ${endStats.ai.scratches}`, C.W/2, 345);
 
   const flash = 0.5 + 0.5 * Math.sin(t * 0.004);
   ctx.fillStyle = `rgba(255,255,255,${flash})`;
@@ -1700,15 +1840,29 @@ function drawTutorial(t) {
     }
   }
 
+  // Progress dots
+  const dotY = cy + 166;
+  const dotSpacing = 20;
+  const totalDotsW = (C.TUTORIAL_STEPS - 1) * dotSpacing;
+  const dotStartX = cx - totalDotsW / 2;
+  for (let i = 0; i < C.TUTORIAL_STEPS; i++) {
+    const dx = dotStartX + i * dotSpacing;
+    const isActive = i === step;
+    ctx.fillStyle = isActive ? '#00e5ff' : '#444';
+    ctx.beginPath();
+    ctx.arc(dx, dotY, isActive ? 6 : 4, 0, Math.PI*2);
+    ctx.fill();
+  }
+
   // Step indicator
   ctx.fillStyle = '#555';
   ctx.font = '14px Rajdhani';
-  ctx.fillText(`${step+1} / ${C.TUTORIAL_STEPS}`, cx, cy + 170);
+  ctx.fillText(`${step+1} / ${C.TUTORIAL_STEPS}`, cx, cy + 186);
 
   const flash = 0.5 + 0.5 * Math.sin(t * 0.005);
   ctx.fillStyle = `rgba(255,255,255,${flash})`;
   ctx.font = '14px Orbitron';
-  ctx.fillText('SPACE to continue', cx, cy + 190);
+  ctx.fillText('SPACE to continue', cx, cy + 208);
 }
 
 // ===== MAIN SCENE DRAWING =====
@@ -1727,6 +1881,7 @@ function drawScene(t) {
   drawPowerBar();
   drawReconButton();
   drawAIThinking(t);
+  drawReconBeams(t);
   drawPopups();
   drawHUD();
 }
@@ -1892,7 +2047,13 @@ function update(dt) {
   if (turnPhase === 'ROLLING') {
     updatePhysics(effectiveDt);
     if (allBallsStopped()) {
-      resolveTurn();
+      settleTimer += dt * 1000;
+      if (settleTimer >= 500) {
+        settleTimer = 0;
+        resolveTurn();
+      }
+    } else {
+      settleTimer = 0;
     }
   }
 
