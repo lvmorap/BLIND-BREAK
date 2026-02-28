@@ -192,15 +192,16 @@ export function drawTable(): void {
     ctx.restore();
 
     // Spinning particle streams
+    const particleColors = ['255,180,80', '180,200,255', '200,120,255'];
     for (let i = 0; i < 10; i++) {
+      // Golden angle (~2.39996 rad) spreads particles evenly around the orbit
       const angle = bhT * (1.2 + i * 0.15) + (seed + i) * 2.39996;
       const orbitR = pk.r + 4 + (i % 3) * 5 + Math.sin(bhT + i) * 2;
       const px = pk.x + Math.cos(angle) * orbitR;
       const py = pk.y + Math.sin(angle) * orbitR * 0.55;
       const pAlpha = (0.5 + 0.5 * Math.sin(bhT * 2 + i)) * bhPulse;
       const pSize = 0.6 + (i % 3) * 0.4;
-      const colors = ['255,180,80', '180,200,255', '200,120,255'];
-      ctx.fillStyle = `rgba(${colors[i % 3]},${pAlpha * 0.7})`;
+      ctx.fillStyle = `rgba(${particleColors[i % 3]},${pAlpha * 0.7})`;
       ctx.beginPath();
       ctx.arc(px, py, pSize, 0, Math.PI * 2);
       ctx.fill();
