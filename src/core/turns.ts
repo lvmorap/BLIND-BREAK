@@ -1,47 +1,12 @@
 import { C, FELT_L, FELT_T, FELT_R, FELT_B, FELT_CX, FELT_CY } from './constants.ts';
 import { state, getCueBall } from './state.ts';
-import { getLightLevel, allObjectBallsSunk, triggerShake } from './physics.ts';
+import { allObjectBallsSunk, triggerShake } from './physics.ts';
 import { aiTakeTurn } from '../ai/ai.ts';
 
 export function resolveTurn(): void {
   state.turnPhase = 'RESOLVE';
 
   state.lightZones = state.lightZones.filter((z) => state.currentRound - z.createdAtRound <= 2);
-  state.ghostBalls = state.ghostBalls.filter((g) => state.currentRound - g.round <= 2);
-
-  for (let i = 1; i < state.balls.length; i++) {
-    const b = state.balls[i];
-    if (!b || !b.alive) continue;
-    const ll = getLightLevel(b.x, b.y);
-    if (ll <= 0.1 && b.lastLitX !== undefined) {
-      const existing = state.ghostBalls.find((g) => g.id === b.id);
-      if (existing) {
-        existing.x = b.lastLitX;
-        existing.y = b.lastLitY ?? b.y;
-        existing.round = state.currentRound;
-      } else {
-        state.ghostBalls.push({
-          id: b.id,
-          x: b.lastLitX,
-          y: b.lastLitY ?? b.y,
-          color: b.color,
-          round: state.currentRound,
-        });
-        if (!state.scoringReminderShown && !state.scoringReminder) {
-          state.scoringReminder = {
-            x: b.lastLitX,
-            y: b.lastLitY ?? b.y,
-            ghostId: b.id,
-            timer: 4000,
-            maxTimer: 4000,
-          };
-          state.scoringReminderShown = true;
-        }
-      }
-    } else if (ll > 0.1) {
-      state.ghostBalls = state.ghostBalls.filter((g) => g.id !== b.id);
-    }
-  }
 
   if (allObjectBallsSunk() || state.currentRound > C.ROUNDS) {
     state.gameState = 'ENDSCREEN';

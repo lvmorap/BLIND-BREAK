@@ -1,4 +1,4 @@
-import { C, LAMP_ZONES, POCKETS } from '../core/constants.ts';
+import { C, POCKETS } from '../core/constants.ts';
 import { state } from '../core/state.ts';
 import { ctx, lightCanvas, lctx } from './canvas.ts';
 
@@ -9,7 +9,7 @@ export function drawDarkness(): void {
   lctx.globalCompositeOperation = 'destination-out';
 
   const cue = state.balls[0];
-  if (cue && cue.alive) {
+  if (cue && cue.alive && state.turnPhase === 'ROLLING') {
     const cg = lctx.createRadialGradient(cue.x, cue.y, 0, cue.x, cue.y, C.LIGHT_CUE_R);
     cg.addColorStop(0, 'rgba(0,0,0,1)');
     cg.addColorStop(1, 'rgba(0,0,0,0)');
@@ -20,15 +20,6 @@ export function drawDarkness(): void {
       C.LIGHT_CUE_R * 2,
       C.LIGHT_CUE_R * 2,
     );
-  }
-
-  for (const lamp of LAMP_ZONES) {
-    lctx.save();
-    lctx.beginPath();
-    lctx.ellipse(lamp.x, lamp.y, lamp.rx, lamp.ry, 0, 0, Math.PI * 2);
-    lctx.fillStyle = 'rgba(0,0,0,0.7)';
-    lctx.fill();
-    lctx.restore();
   }
 
   for (const pk of POCKETS) {

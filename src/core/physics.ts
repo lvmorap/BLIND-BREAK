@@ -13,12 +13,7 @@ import {
 } from './constants.ts';
 import { state, getCueBall } from './state.ts';
 import { playSound } from './audio.ts';
-import {
-  spawnBallTrail,
-  spawnPocketBurst,
-  spawnBlindBurst,
-  addScorePopup,
-} from '../rendering/effects.ts';
+import { spawnBallTrail, spawnPocketBurst, addScorePopup } from '../rendering/effects.ts';
 
 export function getLightLevel(x: number, y: number): number {
   for (const lamp of LAMP_ZONES) {
@@ -132,36 +127,11 @@ function sinkBall(ball: Ball): void {
   }
 
   const statKey = state.currentTurn === 'PLAYER' ? 'player' : 'ai';
-  const lightLevel = getLightLevel(ball.x, ball.y);
-  let pts: number;
-  let label: string;
-  let color: string;
-  let size: number;
-
-  if (lightLevel <= 0.1) {
-    pts = C.SCORE_BLIND;
-    label = '+3 BLIND!';
-    color = '#ffd700';
-    size = 32;
-    spawnBlindBurst(pocketX, pocketY);
-    playSound('BLIND_BONUS');
-    triggerShake(10, 350);
-    state.timeScale = C.SLOW_MO_SCALE;
-    state.slowMoTimer = C.SLOW_MO_DURATION;
-    state.endStats[statKey].blind++;
-  } else if (lightLevel <= 0.5) {
-    pts = C.SCORE_SHADOW;
-    label = '+2 SHADOW';
-    color = '#dddddd';
-    size = 26;
-    state.endStats[statKey].shadow++;
-  } else {
-    pts = C.SCORE_LIT;
-    label = '+1';
-    color = ball.color;
-    size = 20;
-    state.endStats[statKey].lit++;
-  }
+  const pts = 1;
+  const label = '+1';
+  const color = ball.color;
+  const size = 24;
+  state.endStats[statKey].lit++;
 
   if (state.currentTurn === 'PLAYER') state.playerScore += pts;
   else state.aiScore += pts;
@@ -181,15 +151,7 @@ function sinkBall(ball: Ball): void {
     });
   }
 
-  const gx = ball.lastLitX !== undefined ? ball.lastLitX : ball.x;
-  const gy = ball.lastLitY !== undefined ? ball.lastLitY : ball.y;
-  state.ghostBalls.push({
-    id: ball.id,
-    x: gx,
-    y: gy,
-    color: ball.color,
-    round: state.currentRound,
-  });
+  // Ghost balls removed from game
 }
 
 export function updatePhysics(dt: number): void {

@@ -126,16 +126,3 @@ export function drawBalls(): void {
     drawBall(b);
   }
 }
-
-export function drawGhostBalls(): void {
-  for (const g of state.ghostBalls) {
-    const age = state.currentRound - g.round;
-    if (age > 2) continue;
-    const a = age === 0 ? 0.15 : age === 1 ? 0.1 : 0.05;
-    ctx.strokeStyle = `rgba(255,255,255,${a})`;
-    ctx.lineWidth = 1.5;
-    ctx.beginPath();
-    ctx.arc(g.x, g.y, C.BALL_R, 0, Math.PI * 2);
-    ctx.stroke();
-  }
-}
