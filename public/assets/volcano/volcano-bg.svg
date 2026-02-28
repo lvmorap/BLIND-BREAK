@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="720" viewBox="0 0 1280 720">
+  <defs>
+    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#0a0205"/>
+      <stop offset="40%" stop-color="#1a0805"/>
+      <stop offset="70%" stop-color="#2a1005"/>
+      <stop offset="100%" stop-color="#3a1505"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="50%" cy="35%" r="30%">
+      <stop offset="0%" stop-color="#ff6600" stop-opacity="0.4"/>
+      <stop offset="50%" stop-color="#ff3300" stop-opacity="0.15"/>
+      <stop offset="100%" stop-color="#990000" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <rect width="1280" height="720" fill="url(#sky)"/>
+  <rect width="1280" height="720" fill="url(#glow)"/>
+  <!-- Volcano silhouette -->
+  <path d="M0 720 L400 720 L520 350 L580 280 L600 300 L620 260 L660 290 L700 340 L820 720 L1280 720 L1280 0 L0 0 Z" fill="#0d0505" opacity="0.9"/>
+  <!-- Lava glow at crater -->
+  <ellipse cx="610" cy="280" rx="50" ry="20" fill="#ff4400" opacity="0.5"/>
+  <ellipse cx="610" cy="285" rx="35" ry="12" fill="#ff8800" opacity="0.6"/>
+  <ellipse cx="610" cy="288" rx="20" ry="8" fill="#ffcc00" opacity="0.7"/>
+</svg>
