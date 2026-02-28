@@ -290,11 +290,11 @@ export function drawTutorial(t: number): void {
   ctx.textAlign = 'center';
 
   const captions = [
-    'Drag from the cue ball to aim & set power.',
+    'Drag from the cue ball to aim and set power.',
     'The table is always in total darkness.',
     'A light follows the cue ball. Shots leave a trail.',
     'Pocket a ball for an extra turn!',
-    'Scratch = lose points & your turn.',
+    'Scratch = lose points and your turn.',
   ];
 
   ctx.fillText(captions[step] ?? '', cx, cy + 140);
