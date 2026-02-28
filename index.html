@@ -4,6 +4,8 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>BLIND BREAK — Noir Billiards in the Dark</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Rajdhani:wght@400;600;700&display=swap" rel="stylesheet">
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
@@ -795,8 +797,27 @@ function drawTable() {
   // Felt
   ctx.drawImage(feltCanvas, FELT_L, FELT_T, FELT_W, FELT_H);
 
+  // Felt perspective gradient (Section 17C)
+  const fpg = ctx.createRadialGradient(FELT_CX, FELT_CY, 20, FELT_CX, FELT_CY, FELT_W*0.6);
+  fpg.addColorStop(0, 'rgba(255,255,255,0.04)');
+  fpg.addColorStop(1, 'rgba(0,0,0,0.18)');
+  ctx.fillStyle = fpg;
+  ctx.fillRect(FELT_L, FELT_T, FELT_W, FELT_H);
+
   // Pockets
   for (const pk of POCKETS) {
+    // Leather cushion rim arc
+    ctx.strokeStyle = '#2a1208';
+    ctx.lineWidth = 4;
+    ctx.beginPath();
+    ctx.arc(pk.x, pk.y, pk.r + 2, 0, Math.PI*2);
+    ctx.stroke();
+    // Darker inner rim
+    ctx.strokeStyle = '#1a0a04';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(pk.x, pk.y, pk.r + 0.5, 0, Math.PI*2);
+    ctx.stroke();
     // Dark void
     ctx.fillStyle = '#000005';
     ctx.beginPath();
