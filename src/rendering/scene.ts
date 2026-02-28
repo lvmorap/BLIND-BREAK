@@ -25,6 +25,8 @@ import {
   drawNumberBouncePopups,
   drawRoundTransition,
   drawFirstShotCoach,
+  drawLaserBeam,
+  drawComets,
 } from './hud.ts';
 import { drawAIThinking } from '../ai/ai.ts';
 
@@ -47,11 +49,13 @@ export function drawScene(t: number): void {
   drawDarkness();
   drawSupernovaEffect();
   drawTableOutline();
+  drawComets();
   drawParticlesView();
   drawNumberBouncePopups();
   drawNeonSign(t);
   drawAimLine();
   drawAlienHand();
+  drawLaserBeam();
   drawChargingEffects(t);
   drawPowerBar();
   drawReconButton();

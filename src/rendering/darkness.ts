@@ -1,4 +1,4 @@
-import { C } from '../core/constants.ts';
+import { C, POCKETS } from '../core/constants.ts';
 import { state } from '../core/state.ts';
 import { ctx, lightCanvas, lctx } from './canvas.ts';
 
@@ -39,6 +39,17 @@ export function drawDarkness(): void {
     zg.addColorStop(1, 'rgba(0,0,0,0)');
     lctx.fillStyle = zg;
     lctx.fillRect(z.x - z.radius, z.y - z.radius, z.radius * 2, z.radius * 2);
+  }
+
+  // Black holes are always visible — punch through darkness
+  for (const pk of POCKETS) {
+    const bhR = pk.r + 22;
+    const bhGlow = lctx.createRadialGradient(pk.x, pk.y, 0, pk.x, pk.y, bhR);
+    bhGlow.addColorStop(0, 'rgba(0,0,0,0.9)');
+    bhGlow.addColorStop(0.5, 'rgba(0,0,0,0.5)');
+    bhGlow.addColorStop(1, 'rgba(0,0,0,0)');
+    lctx.fillStyle = bhGlow;
+    lctx.fillRect(pk.x - bhR, pk.y - bhR, bhR * 2, bhR * 2);
   }
 
   lctx.globalCompositeOperation = 'source-over';

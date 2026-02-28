@@ -154,6 +154,60 @@ function update(dt: number): void {
     if (r.time >= r.maxTime) state.wallRipples.splice(i, 1);
   }
 
+  // Update laser beam
+  if (state.laserBeam && state.laserBeam.timer > 0) {
+    state.laserBeam.timer -= dt * 1000;
+    if (state.laserBeam.timer <= 0) {
+      state.laserBeam = null;
+    }
+  }
+
+  // Spawn comets occasionally
+  if (Math.random() < 0.002 * dt * 60 && state.comets.length < 3) {
+    const side = Math.floor(Math.random() * 4);
+    let cx: number, cy: number, cvx: number, cvy: number;
+    if (side === 0) {
+      cx = -10;
+      cy = Math.random() * C.H;
+      cvx = 1 + Math.random() * 2;
+      cvy = (Math.random() - 0.5) * 1.5;
+    } else if (side === 1) {
+      cx = C.W + 10;
+      cy = Math.random() * C.H;
+      cvx = -(1 + Math.random() * 2);
+      cvy = (Math.random() - 0.5) * 1.5;
+    } else if (side === 2) {
+      cx = Math.random() * C.W;
+      cy = -10;
+      cvx = (Math.random() - 0.5) * 1.5;
+      cvy = 1 + Math.random() * 2;
+    } else {
+      cx = Math.random() * C.W;
+      cy = C.H + 10;
+      cvx = (Math.random() - 0.5) * 1.5;
+      cvy = -(1 + Math.random() * 2);
+    }
+    state.comets.push({
+      x: cx,
+      y: cy,
+      vx: cvx,
+      vy: cvy,
+      size: 1 + Math.random() * 1.5,
+      alpha: 0.4 + Math.random() * 0.4,
+      tailLen: 20 + Math.random() * 40,
+    });
+  }
+  // Update comets
+  for (let i = state.comets.length - 1; i >= 0; i--) {
+    const cm = state.comets[i];
+    if (!cm) continue;
+    cm.x += cm.vx * dt * 60;
+    cm.y += cm.vy * dt * 60;
+    if (cm.x < -60 || cm.x > C.W + 60 || cm.y < -60 || cm.y > C.H + 60) {
+      state.comets.splice(i, 1);
+    }
+  }
+
   // Update supernova
   if (state.supernovaActive && state.supernovaTimer > 0) {
     state.supernovaTimer -= dt * 1000;

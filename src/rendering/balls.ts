@@ -1,5 +1,5 @@
 import type { Ball } from '../types/game.ts';
-import { C, CB_SHAPES } from '../core/constants.ts';
+import { C, CB_SHAPES, POCKETS } from '../core/constants.ts';
 import { state } from '../core/state.ts';
 import { getLightLevel } from '../core/physics.ts';
 import { ctx } from './canvas.ts';
@@ -27,16 +27,46 @@ function drawSunBall(_b: Ball): void {
   const t = performance.now() * 0.003;
   const pulse = 1.0 + 0.08 * Math.sin(t);
 
-  // Solar corona
+  // Outer corona haze
+  const outerR = C.BALL_R * 3.5 * pulse;
+  const og = ctx.createRadialGradient(0, 0, C.BALL_R, 0, 0, outerR);
+  og.addColorStop(0, 'rgba(255,180,40,0.15)');
+  og.addColorStop(0.4, 'rgba(255,120,20,0.06)');
+  og.addColorStop(1, 'rgba(255,60,0,0)');
+  ctx.fillStyle = og;
+  ctx.beginPath();
+  ctx.arc(0, 0, outerR, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Solar corona with prominences
   const coronaR = C.BALL_R * 2.5 * pulse;
   const cg = ctx.createRadialGradient(0, 0, C.BALL_R * 0.5, 0, 0, coronaR);
-  cg.addColorStop(0, 'rgba(255,200,50,0.3)');
-  cg.addColorStop(0.4, 'rgba(255,140,20,0.1)');
+  cg.addColorStop(0, 'rgba(255,220,80,0.35)');
+  cg.addColorStop(0.3, 'rgba(255,160,30,0.15)');
+  cg.addColorStop(0.7, 'rgba(255,100,10,0.05)');
   cg.addColorStop(1, 'rgba(255,80,0,0)');
   ctx.fillStyle = cg;
   ctx.beginPath();
   ctx.arc(0, 0, coronaR, 0, Math.PI * 2);
   ctx.fill();
+
+  // Solar prominences (spiky rays)
+  const rayCount = 8;
+  for (let i = 0; i < rayCount; i++) {
+    const angle = (i / rayCount) * Math.PI * 2 + t * 0.5;
+    const rayLen = C.BALL_R * (1.6 + 0.5 * Math.sin(t * 2 + i * 1.7));
+    const rayAlpha = 0.12 + 0.08 * Math.sin(t * 1.5 + i);
+    ctx.save();
+    ctx.rotate(angle);
+    ctx.fillStyle = `rgba(255,200,60,${rayAlpha})`;
+    ctx.beginPath();
+    ctx.moveTo(C.BALL_R * 0.7, -1.5);
+    ctx.lineTo(C.BALL_R * 0.7 + rayLen, 0);
+    ctx.lineTo(C.BALL_R * 0.7, 1.5);
+    ctx.closePath();
+    ctx.fill();
+    ctx.restore();
+  }
 
   // Sun body
   const sg = ctx.createRadialGradient(-2, -2, 1, 0, 0, C.BALL_R);
@@ -49,9 +79,19 @@ function drawSunBall(_b: Ball): void {
   ctx.arc(0, 0, C.BALL_R, 0, Math.PI * 2);
   ctx.fill();
 
+  // Surface granulation
+  for (let i = 0; i < 5; i++) {
+    const gx = Math.cos(t * 0.3 + i * 1.2) * C.BALL_R * 0.5;
+    const gy = Math.sin(t * 0.4 + i * 1.5) * C.BALL_R * 0.5;
+    ctx.fillStyle = `rgba(255,160,40,${0.15 + 0.05 * Math.sin(t + i)})`;
+    ctx.beginPath();
+    ctx.arc(gx, gy, 2 + Math.sin(t + i) * 0.5, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
   // Sun hot spot
   const hg = ctx.createRadialGradient(-3, -3, 1, -3, -3, 5);
-  hg.addColorStop(0, 'rgba(255,255,255,0.8)');
+  hg.addColorStop(0, 'rgba(255,255,255,0.85)');
   hg.addColorStop(1, 'rgba(255,255,255,0)');
   ctx.fillStyle = hg;
   ctx.beginPath();
@@ -60,9 +100,9 @@ function drawSunBall(_b: Ball): void {
 
   // Outer glow
   ctx.shadowColor = '#ffaa00';
-  ctx.shadowBlur = 20 * pulse;
-  ctx.strokeStyle = 'rgba(255,200,50,0.3)';
-  ctx.lineWidth = 1;
+  ctx.shadowBlur = 25 * pulse;
+  ctx.strokeStyle = 'rgba(255,200,50,0.4)';
+  ctx.lineWidth = 1.5;
   ctx.beginPath();
   ctx.arc(0, 0, C.BALL_R + 2, 0, Math.PI * 2);
   ctx.stroke();
@@ -184,9 +224,26 @@ export function drawBall(b: Ball): void {
 
   if (b.id > 0 && b.visAlpha !== undefined && b.visAlpha < 0.02) return;
 
+  // Gravitational distortion near black holes
+  let distortSx = 1;
+  let distortSy = 1;
+  for (const pk of POCKETS) {
+    const dx = b.x - pk.x;
+    const dy = b.y - pk.y;
+    const dist = Math.sqrt(dx * dx + dy * dy);
+    const influenceR = pk.r + 50;
+    if (dist < influenceR && dist > 0) {
+      const strength = (1 - dist / influenceR) * 0.2;
+      const angle = Math.atan2(dy, dx);
+      // Stretch toward the black hole
+      distortSx += Math.abs(Math.cos(angle)) * strength;
+      distortSy += Math.abs(Math.sin(angle)) * strength;
+    }
+  }
+
   ctx.save();
   ctx.translate(b.x, b.y);
-  ctx.scale(b.squash.sx * scale, b.squash.sy * scale);
+  ctx.scale(b.squash.sx * scale * distortSx, b.squash.sy * scale * distortSy);
 
   if (b.trail.length > 0) {
     const alphas = [0.05, 0.12, 0.25];

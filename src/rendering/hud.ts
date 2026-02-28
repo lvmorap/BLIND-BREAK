@@ -198,16 +198,26 @@ export function drawAlienHand(): void {
   ctx.save();
   ctx.translate(mx, my);
 
-  // Alien hand geometry: centered at cursor position
-  // Palm: ellipse 20×16px centered 8px below cursor
-  // 3 fingers: 6×14-16px ellipses extending upward, spaced 12px apart
-  // Each finger has a 7px-diameter bulbous tip
-  // Thumb: 5×10px ellipse offset left, rotated -0.6 rad
-  ctx.fillStyle = 'rgba(80,200,120,0.7)';
-  ctx.strokeStyle = 'rgba(60,160,90,0.8)';
-  ctx.lineWidth = 1;
+  // Alien hand with bioluminescent glow
+  const t = performance.now() * 0.003;
+  const glowPulse = 0.6 + 0.4 * Math.sin(t);
+
+  // Hand glow aura
+  const aura = ctx.createRadialGradient(0, 4, 0, 0, 4, 28);
+  aura.addColorStop(0, `rgba(60,220,100,${0.15 * glowPulse})`);
+  aura.addColorStop(1, 'rgba(60,220,100,0)');
+  ctx.fillStyle = aura;
+  ctx.beginPath();
+  ctx.arc(0, 4, 28, 0, Math.PI * 2);
+  ctx.fill();
 
   // Palm (20×16 ellipse, cy offset +8)
+  const palmGrad = ctx.createRadialGradient(-2, 6, 2, 0, 8, 12);
+  palmGrad.addColorStop(0, 'rgba(100,230,140,0.8)');
+  palmGrad.addColorStop(1, 'rgba(50,180,90,0.6)');
+  ctx.fillStyle = palmGrad;
+  ctx.strokeStyle = `rgba(40,200,80,${0.5 + glowPulse * 0.3})`;
+  ctx.lineWidth = 1;
   ctx.beginPath();
   ctx.ellipse(0, 8, 10, 8, 0, 0, Math.PI * 2);
   ctx.fill();
@@ -223,17 +233,20 @@ export function drawAlienHand(): void {
     ctx.save();
     ctx.translate(f.x, f.y);
     ctx.rotate(f.angle);
-    ctx.fillStyle = 'rgba(80,200,120,0.7)';
+    ctx.fillStyle = 'rgba(80,210,120,0.7)';
     ctx.beginPath();
     ctx.ellipse(0, -f.len / 2, 3, f.len / 2, 0, 0, Math.PI * 2);
     ctx.fill();
-    ctx.strokeStyle = 'rgba(60,160,90,0.6)';
+    ctx.strokeStyle = `rgba(60,180,90,${0.4 + glowPulse * 0.2})`;
     ctx.stroke();
-    // Fingertip bulb
-    ctx.fillStyle = 'rgba(100,220,140,0.6)';
+    // Bioluminescent fingertip
+    ctx.fillStyle = `rgba(120,255,160,${0.5 + glowPulse * 0.3})`;
+    ctx.shadowColor = '#44ff88';
+    ctx.shadowBlur = 6 * glowPulse;
     ctx.beginPath();
     ctx.arc(0, -f.len, 3.5, 0, Math.PI * 2);
     ctx.fill();
+    ctx.shadowBlur = 0;
     ctx.restore();
   }
 
@@ -241,11 +254,23 @@ export function drawAlienHand(): void {
   ctx.save();
   ctx.translate(-10, 6);
   ctx.rotate(-0.6);
-  ctx.fillStyle = 'rgba(80,200,120,0.7)';
+  ctx.fillStyle = 'rgba(80,210,120,0.7)';
   ctx.beginPath();
   ctx.ellipse(0, -5, 2.5, 5, 0, 0, Math.PI * 2);
   ctx.fill();
   ctx.restore();
+
+  // Wrist veins (bioluminescent)
+  ctx.strokeStyle = `rgba(80,255,120,${0.15 * glowPulse})`;
+  ctx.lineWidth = 0.5;
+  ctx.beginPath();
+  ctx.moveTo(-3, 16);
+  ctx.bezierCurveTo(-2, 12, -1, 8, 0, 4);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(3, 16);
+  ctx.bezierCurveTo(2, 12, 1, 8, 0, 4);
+  ctx.stroke();
 
   ctx.restore();
 }
@@ -422,14 +447,35 @@ export function drawSupernovaEffect(): void {
   ctx.save();
 
   if (progress < 0.3) {
-    // Expanding flash
-    const flashAlpha = (1 - progress / 0.3) * 0.8;
-    const flashR = progress * C.W;
+    // Expanding flash — bright white/gold
+    const flashAlpha = (1 - progress / 0.3) * 0.9;
+    const flashR = progress * C.W * 1.2;
     const fg = ctx.createRadialGradient(cx, cy, 0, cx, cy, flashR);
-    fg.addColorStop(0, `rgba(255,255,200,${flashAlpha})`);
-    fg.addColorStop(0.3, `rgba(255,200,100,${flashAlpha * 0.6})`);
-    fg.addColorStop(1, 'rgba(255,150,50,0)');
+    fg.addColorStop(0, `rgba(255,255,240,${flashAlpha})`);
+    fg.addColorStop(0.15, `rgba(255,240,180,${flashAlpha * 0.8})`);
+    fg.addColorStop(0.4, `rgba(255,180,80,${flashAlpha * 0.5})`);
+    fg.addColorStop(0.7, `rgba(255,100,30,${flashAlpha * 0.2})`);
+    fg.addColorStop(1, 'rgba(255,50,0,0)');
     ctx.fillStyle = fg;
+    ctx.fillRect(0, 0, C.W, C.H);
+
+    // Shockwave ring
+    const ringR = progress * C.W * 0.8;
+    const ringW = 4 + progress * 8;
+    ctx.strokeStyle = `rgba(255,200,100,${flashAlpha * 0.6})`;
+    ctx.lineWidth = ringW;
+    ctx.shadowColor = '#ffcc66';
+    ctx.shadowBlur = 20;
+    ctx.beginPath();
+    ctx.arc(cx, cy, ringR, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.shadowBlur = 0;
+  }
+
+  // Residual glow during full effect
+  if (progress >= 0.3 && progress < 0.8) {
+    const glowAlpha = 0.15 * (1 - (progress - 0.3) / 0.5);
+    ctx.fillStyle = `rgba(255,200,100,${glowAlpha})`;
     ctx.fillRect(0, 0, C.W, C.H);
   }
 
@@ -438,14 +484,34 @@ export function drawSupernovaEffect(): void {
     const textAlpha = Math.min(1, (progress - 0.1) * 5) * Math.min(1, (0.6 - progress) * 5);
     ctx.globalAlpha = textAlpha;
     ctx.fillStyle = '#ffdd88';
-    ctx.font = 'bold 44px Orbitron';
+    ctx.font = 'bold 52px Orbitron';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     ctx.shadowColor = '#ffaa00';
-    ctx.shadowBlur = 30;
+    ctx.shadowBlur = 40;
+    ctx.fillText('☀ SUPERNOVA ☀', cx, cy);
+    ctx.shadowColor = '#ffffff';
+    ctx.shadowBlur = 20;
     ctx.fillText('☀ SUPERNOVA ☀', cx, cy);
     ctx.shadowBlur = 0;
     ctx.globalAlpha = 1;
+  }
+
+  // Fading star particles
+  if (progress > 0.1) {
+    const t = performance.now() * 0.005;
+    const count = Math.floor(12 * (1 - progress));
+    for (let i = 0; i < count; i++) {
+      const angle = (i / count) * Math.PI * 2 + t;
+      const dist = 50 + progress * 300 + Math.sin(t + i) * 30;
+      const px = cx + Math.cos(angle) * dist;
+      const py = cy + Math.sin(angle) * dist * 0.6;
+      const pAlpha = (1 - progress) * 0.6;
+      ctx.fillStyle = `rgba(255,220,120,${pAlpha})`;
+      ctx.beginPath();
+      ctx.arc(px, py, 2, 0, Math.PI * 2);
+      ctx.fill();
+    }
   }
 
   ctx.restore();
@@ -498,6 +564,122 @@ export function drawNumberBouncePopups(): void {
     ctx.fillStyle = nb.color;
     ctx.fillText(nb.num, nb.x, nb.y);
     ctx.shadowBlur = 0;
+    ctx.restore();
+  }
+}
+
+export function drawLaserBeam(): void {
+  if (!state.laserBeam || state.laserBeam.timer <= 0) return;
+
+  const lb = state.laserBeam;
+  const progress = lb.timer / lb.maxTimer;
+  const alpha = progress;
+
+  ctx.save();
+
+  // Outer glow
+  ctx.strokeStyle = `rgba(0,180,255,${alpha * 0.3})`;
+  ctx.lineWidth = 16;
+  ctx.shadowColor = '#00bbff';
+  ctx.shadowBlur = 30 * progress;
+  ctx.beginPath();
+  ctx.moveTo(lb.sx, lb.sy);
+  ctx.lineTo(lb.ex, lb.ey);
+  ctx.stroke();
+
+  // Mid beam
+  ctx.strokeStyle = `rgba(100,200,255,${alpha * 0.6})`;
+  ctx.lineWidth = 6;
+  ctx.shadowBlur = 15 * progress;
+  ctx.beginPath();
+  ctx.moveTo(lb.sx, lb.sy);
+  ctx.lineTo(lb.ex, lb.ey);
+  ctx.stroke();
+
+  // Core beam — white hot
+  ctx.strokeStyle = `rgba(220,240,255,${alpha * 0.9})`;
+  ctx.lineWidth = 2;
+  ctx.shadowColor = '#ffffff';
+  ctx.shadowBlur = 8 * progress;
+  ctx.beginPath();
+  ctx.moveTo(lb.sx, lb.sy);
+  ctx.lineTo(lb.ex, lb.ey);
+  ctx.stroke();
+  ctx.shadowBlur = 0;
+
+  // Impact flash at start point
+  if (progress > 0.7) {
+    const flashR = (20 * (progress - 0.7)) / 0.3;
+    const fg = ctx.createRadialGradient(lb.sx, lb.sy, 0, lb.sx, lb.sy, flashR);
+    fg.addColorStop(0, `rgba(255,255,255,${alpha * 0.8})`);
+    fg.addColorStop(0.5, `rgba(100,200,255,${alpha * 0.4})`);
+    fg.addColorStop(1, 'rgba(0,100,255,0)');
+    ctx.fillStyle = fg;
+    ctx.beginPath();
+    ctx.arc(lb.sx, lb.sy, flashR, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  ctx.restore();
+}
+
+export function drawComets(): void {
+  const t = performance.now() * 0.001;
+  for (const comet of state.comets) {
+    ctx.save();
+    ctx.globalAlpha = comet.alpha;
+
+    // Tail
+    const tailAngle = Math.atan2(-comet.vy, -comet.vx);
+    const tailEndX = comet.x + Math.cos(tailAngle) * comet.tailLen;
+    const tailEndY = comet.y + Math.sin(tailAngle) * comet.tailLen;
+    const tg = ctx.createLinearGradient(comet.x, comet.y, tailEndX, tailEndY);
+    tg.addColorStop(0, 'rgba(200,220,255,0.6)');
+    tg.addColorStop(0.3, 'rgba(150,180,255,0.3)');
+    tg.addColorStop(1, 'rgba(100,140,255,0)');
+    ctx.strokeStyle = tg;
+    ctx.lineWidth = comet.size * 0.8;
+    ctx.beginPath();
+    ctx.moveTo(comet.x, comet.y);
+    ctx.lineTo(tailEndX, tailEndY);
+    ctx.stroke();
+
+    // Head
+    ctx.fillStyle = '#ddeeff';
+    ctx.shadowColor = '#88bbff';
+    ctx.shadowBlur = 6;
+    ctx.beginPath();
+    ctx.arc(comet.x, comet.y, comet.size, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.shadowBlur = 0;
+
+    ctx.restore();
+  }
+
+  // Ambient satellites orbiting near table edges
+  const satCount = 3;
+  for (let i = 0; i < satCount; i++) {
+    const angle = t * (0.15 + i * 0.08) + (i * Math.PI * 2) / satCount;
+    const orbitRx = 400 + i * 30;
+    const orbitRy = 260 + i * 20;
+    const sx = C.W / 2 + Math.cos(angle) * orbitRx;
+    const sy = C.H / 2 + Math.sin(angle) * orbitRy;
+    if (sx < -10 || sx > C.W + 10 || sy < -10 || sy > C.H + 10) continue;
+    const satAlpha = 0.3 + 0.2 * Math.sin(t * 2 + i);
+    ctx.save();
+    ctx.globalAlpha = satAlpha;
+    ctx.fillStyle = '#aabbdd';
+    ctx.beginPath();
+    ctx.arc(sx, sy, 1.5, 0, Math.PI * 2);
+    ctx.fill();
+    // Solar panel glint
+    const glint = Math.sin(t * 4 + i * 2);
+    if (glint > 0.8) {
+      ctx.fillStyle = `rgba(255,255,200,${(glint - 0.8) * 5 * satAlpha})`;
+      ctx.beginPath();
+      ctx.arc(sx, sy, 3, 0, Math.PI * 2);
+      ctx.fill();
+    }
     ctx.restore();
   }
 }

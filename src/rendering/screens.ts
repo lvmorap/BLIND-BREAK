@@ -21,18 +21,30 @@ function loadHeroImage(): void {
   heroImg.onload = (): void => {
     heroLoaded = true;
   };
-  heroImg.src = './assets/hero-billiards.svg';
+  heroImg.src = './assets/hero-cosmic.svg';
 }
 
 loadHeroImage();
 
 export function drawMenu(t: number): void {
-  ctx.fillStyle = '#050508';
+  ctx.fillStyle = '#020206';
   ctx.fillRect(0, 0, C.W, C.H);
+
+  // Animated starfield background
+  const starT = t * 0.0005;
+  for (let i = 0; i < 80; i++) {
+    const sx = (Math.sin(i * 7.3 + starT) * 0.5 + 0.5) * C.W;
+    const sy = (Math.cos(i * 11.1 + starT * 0.7) * 0.5 + 0.5) * C.H;
+    const brightness = 0.2 + 0.3 * Math.sin(t * 0.003 + i);
+    ctx.fillStyle = `rgba(180,200,255,${brightness})`;
+    ctx.beginPath();
+    ctx.arc(sx, sy, 0.5 + Math.sin(i) * 0.3, 0, Math.PI * 2);
+    ctx.fill();
+  }
 
   if (heroLoaded && heroImg) {
     ctx.save();
-    ctx.globalAlpha = 0.35;
+    ctx.globalAlpha = 0.3;
     const imgW = C.W;
     const imgH = (heroImg.height / heroImg.width) * imgW;
     const imgY = (C.H - imgH) / 2;
@@ -41,44 +53,88 @@ export function drawMenu(t: number): void {
     ctx.restore();
   }
 
+  // Nebula atmosphere
+  const nebulaColors = [
+    { x: 0.25, y: 0.3, color: '80,20,140', r: 250 },
+    { x: 0.75, y: 0.7, color: '20,40,120', r: 200 },
+    { x: 0.5, y: 0.5, color: '40,15,80', r: 300 },
+  ];
+  for (const n of nebulaColors) {
+    const ng = ctx.createRadialGradient(C.W * n.x, C.H * n.y, 10, C.W * n.x, C.H * n.y, n.r);
+    ng.addColorStop(0, `rgba(${n.color},0.06)`);
+    ng.addColorStop(0.5, `rgba(${n.color},0.03)`);
+    ng.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = ng;
+    ctx.fillRect(0, 0, C.W, C.H);
+  }
+
   const vigGrad = ctx.createRadialGradient(C.W / 2, C.H / 2, 80, C.W / 2, C.H / 2, C.W * 0.55);
   vigGrad.addColorStop(0, 'rgba(5,5,8,0)');
   vigGrad.addColorStop(1, 'rgba(5,5,8,0.85)');
   ctx.fillStyle = vigGrad;
   ctx.fillRect(0, 0, C.W, C.H);
 
+  // Title with cosmic glow layers
   ctx.save();
   ctx.globalAlpha = state.neonFlicker;
-  ctx.font = 'bold 60px Orbitron';
+
+  // Deep purple outer glow
+  ctx.font = 'bold 64px Orbitron';
   ctx.textAlign = 'center';
+  ctx.shadowColor = '#6622aa';
+  ctx.shadowBlur = 60;
+  ctx.fillStyle = '#6622aa';
+  ctx.fillText('COSMIC BREAK', C.W / 2, 155);
+
+  // Bright purple mid glow
   ctx.shadowColor = '#aa44ff';
-  ctx.shadowBlur = 50;
-  ctx.fillStyle = '#aa44ff';
-  ctx.fillText('COSMIC BREAK', C.W / 2, 160);
-  ctx.shadowBlur = 25;
-  ctx.fillText('COSMIC BREAK', C.W / 2, 160);
+  ctx.shadowBlur = 35;
+  ctx.fillStyle = '#bb66ff';
+  ctx.fillText('COSMIC BREAK', C.W / 2, 155);
+
+  // White-purple core
+  ctx.shadowColor = '#ddaaff';
+  ctx.shadowBlur = 12;
+  ctx.fillStyle = '#eeddff';
+  ctx.fillText('COSMIC BREAK', C.W / 2, 155);
   ctx.shadowBlur = 0;
   ctx.restore();
 
-  ctx.fillStyle = '#888';
+  // Subtitle
+  ctx.fillStyle = '#8899aa';
   ctx.font = '18px Rajdhani';
   ctx.textAlign = 'center';
-  ctx.fillText('Alien Billiards in the Cosmos', C.W / 2, 192);
+  ctx.fillText('Alien Billiards in the Cosmos', C.W / 2, 188);
 
-  ctx.strokeStyle = 'rgba(255,51,102,0.15)';
+  // Decorative line with glow
+  ctx.save();
+  ctx.shadowColor = '#aa44ff';
+  ctx.shadowBlur = 8;
+  ctx.strokeStyle = 'rgba(170,68,255,0.3)';
   ctx.lineWidth = 1;
   ctx.beginPath();
-  ctx.moveTo(C.W / 2 - 140, 210);
-  ctx.lineTo(C.W / 2 + 140, 210);
+  ctx.moveTo(C.W / 2 - 160, 206);
+  ctx.lineTo(C.W / 2 + 160, 206);
   ctx.stroke();
+  ctx.shadowBlur = 0;
+  ctx.restore();
+
+  // Diamond separators
+  ctx.fillStyle = 'rgba(170,68,255,0.4)';
+  ctx.save();
+  ctx.translate(C.W / 2, 206);
+  ctx.rotate(Math.PI / 4);
+  ctx.fillRect(-3, -3, 6, 6);
+  ctx.restore();
 
   const col1x = C.W / 2 - 170;
   const col2x = C.W / 2 + 170;
 
   ctx.font = 'bold 14px Rajdhani';
   ctx.fillStyle = '#00e5ff';
-  ctx.fillText('THE COSMOS', col1x, 260);
-  ctx.fillStyle = '#aaa';
+  ctx.textAlign = 'center';
+  ctx.fillText('THE COSMOS', col1x, 255);
+  ctx.fillStyle = '#99aabb';
   ctx.font = '13px Rajdhani';
   const rules1 = [
     'The cosmos is shrouded in darkness',
@@ -86,12 +142,12 @@ export function drawMenu(t: number): void {
     'Fire energy rays to launch the Sun',
     '+1 point per planet into a black hole',
   ];
-  rules1.forEach((r, i) => ctx.fillText(r, col1x, 282 + i * 20));
+  rules1.forEach((r, i) => ctx.fillText(r, col1x, 277 + i * 20));
 
   ctx.font = 'bold 14px Rajdhani';
   ctx.fillStyle = '#ffd700';
-  ctx.fillText('CONTROLS', col2x, 260);
-  ctx.fillStyle = '#aaa';
+  ctx.fillText('CONTROLS', col2x, 255);
+  ctx.fillStyle = '#99aabb';
   ctx.font = '13px Rajdhani';
   const rules2 = [
     'Drag from Sun — aim & set power',
@@ -99,14 +155,14 @@ export function drawMenu(t: number): void {
     'Capture a planet = extra turn',
     'ESC — pause | T — tutorial | 5s timer',
   ];
-  rules2.forEach((r, i) => ctx.fillText(r, col2x, 282 + i * 20));
+  rules2.forEach((r, i) => ctx.fillText(r, col2x, 277 + i * 20));
 
   const flash = 0.5 + 0.5 * Math.sin(t * 0.004);
 
   const btnW = 200;
-  const btnH = 36;
+  const btnH = 40;
   const btnGap = 16;
-  const btnY1 = 400;
+  const btnY1 = 395;
   const btnY2 = btnY1 + btnH + btnGap;
   const btnX = C.W / 2 - btnW / 2;
 
@@ -121,27 +177,43 @@ export function drawMenu(t: number): void {
     state.mouseY >= btnY2 &&
     state.mouseY <= btnY2 + btnH;
 
-  ctx.fillStyle = isHover1 ? 'rgba(0,229,255,0.15)' : 'rgba(255,255,255,0.05)';
+  // Button 1 — VS AI
+  ctx.save();
+  ctx.fillStyle = isHover1 ? 'rgba(0,229,255,0.15)' : 'rgba(255,255,255,0.04)';
   ctx.fillRect(btnX, btnY1, btnW, btnH);
-  ctx.strokeStyle = isHover1 ? '#00e5ff' : '#555';
-  ctx.lineWidth = 1;
+  ctx.strokeStyle = isHover1 ? '#00e5ff' : '#444';
+  ctx.lineWidth = isHover1 ? 2 : 1;
+  if (isHover1) {
+    ctx.shadowColor = '#00e5ff';
+    ctx.shadowBlur = 10;
+  }
   ctx.strokeRect(btnX, btnY1, btnW, btnH);
+  ctx.shadowBlur = 0;
   ctx.fillStyle = `rgba(0,229,255,${0.7 + flash * 0.3})`;
   ctx.font = 'bold 16px Orbitron';
   ctx.textAlign = 'center';
-  ctx.fillText('VS AI', C.W / 2, btnY1 + 24);
+  ctx.fillText('VS AI', C.W / 2, btnY1 + 26);
+  ctx.restore();
 
-  ctx.fillStyle = isHover2 ? 'rgba(255,68,102,0.15)' : 'rgba(255,255,255,0.05)';
+  // Button 2 — 2 PLAYERS
+  ctx.save();
+  ctx.fillStyle = isHover2 ? 'rgba(255,68,102,0.15)' : 'rgba(255,255,255,0.04)';
   ctx.fillRect(btnX, btnY2, btnW, btnH);
-  ctx.strokeStyle = isHover2 ? '#ff4466' : '#555';
-  ctx.lineWidth = 1;
+  ctx.strokeStyle = isHover2 ? '#ff4466' : '#444';
+  ctx.lineWidth = isHover2 ? 2 : 1;
+  if (isHover2) {
+    ctx.shadowColor = '#ff4466';
+    ctx.shadowBlur = 10;
+  }
   ctx.strokeRect(btnX, btnY2, btnW, btnH);
+  ctx.shadowBlur = 0;
   ctx.fillStyle = `rgba(255,68,102,${0.7 + flash * 0.3})`;
   ctx.font = 'bold 16px Orbitron';
   ctx.textAlign = 'center';
-  ctx.fillText('2 PLAYERS', C.W / 2, btnY2 + 24);
+  ctx.fillText('2 PLAYERS', C.W / 2, btnY2 + 26);
+  ctx.restore();
 
-  ctx.fillStyle = '#555';
+  ctx.fillStyle = '#556';
   ctx.font = '13px Rajdhani';
   ctx.textAlign = 'center';
   ctx.fillText('7 Orbits · Most captured planets wins', C.W / 2, btnY2 + btnH + 24);
