@@ -94,6 +94,7 @@ interface Goal {
 // ─── SoccerGame ──────────────────────────────────────────────────────────────
 export class SoccerGame implements IGame {
   private input!: InputManager;
+  private durationMult = 1;
   private p1!: Player;
   private p2!: Player;
   private ball!: Ball;
@@ -107,6 +108,10 @@ export class SoccerGame implements IGame {
   private flashColor = '';
 
   // ── IGame lifecycle ──────────────────────────────────────────────────────
+  setDurationMultiplier(mult: number): void {
+    this.durationMult = mult;
+  }
+
   init(_canvas: HTMLCanvasElement, _ctx: CanvasRenderingContext2D): void {
     this.input = new InputManager();
     this.input.init();
@@ -132,7 +137,7 @@ export class SoccerGame implements IGame {
   private resetState(): void {
     this.scoreP1 = 0;
     this.scoreP2 = 0;
-    this.timer = MATCH_TIME;
+    this.timer = MATCH_TIME * this.durationMult;
     this.finished = false;
     this.flashTimer = 0;
     this.goalL = { y: FIELD_Y + FIELD_H / 2, dir: 1 };

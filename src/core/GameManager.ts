@@ -4,13 +4,18 @@ import { InputManager } from './InputManager.ts';
 import { audioManager } from './AudioManager.ts';
 import { particleSystem } from './ParticleSystem.ts';
 import { screenShake } from './ScreenShake.ts';
+import { COLORS } from './Colors.ts';
+import { StarfieldBackground } from './StarfieldBackground.ts';
+import { ScreenTransition } from './ScreenTransition.ts';
 import { TournamentHUD } from '../ui/TournamentHUD.ts';
 import { RoundIntro } from '../ui/RoundIntro.ts';
 import { EndScreen } from '../ui/EndScreen.ts';
 import { MenuScreen } from '../ui/MenuScreen.ts';
 import type { MenuAction } from '../ui/MenuScreen.ts';
+import { IntroCinematic } from '../ui/IntroCinematic.ts';
 
 export type GameState =
+  | 'INTRO'
   | 'MENU'
   | 'ROUND_INTRO'
   | 'COUNTDOWN'
@@ -25,7 +30,7 @@ interface RoundRecord {
 }
 
 export class GameManager {
-  private state: GameState = 'MENU';
+  private state: GameState = 'INTRO';
   private canvas: HTMLCanvasElement;
   private ctx: CanvasRenderingContext2D;
   private inputManager: InputManager;
@@ -35,6 +40,9 @@ export class GameManager {
   private menuScreen: MenuScreen;
   private roundIntro: RoundIntro | null = null;
   private endScreen: EndScreen | null = null;
+  private starfield: StarfieldBackground;
+  private transition: ScreenTransition;
+  private introCinematic: IntroCinematic;
 
   private currentGame: IGame | null = null;
   private gameOrder: GameInfo[] = [];
@@ -51,6 +59,7 @@ export class GameManager {
   private resultTimer: number = 0;
   private resultWinner: 1 | 2 | null = null;
   private shakeOffset: { ox: number; oy: number } = { ox: 0, oy: 0 };
+  private lastDt: number = 0;
 
   constructor(canvas: HTMLCanvasElement, ctx: CanvasRenderingContext2D, registry: GameInfo[]) {
     this.canvas = canvas;
@@ -60,6 +69,10 @@ export class GameManager {
     this.tweenManager = new TweenManager();
     this.hud = new TournamentHUD();
     this.menuScreen = new MenuScreen(registry);
+    this.starfield = new StarfieldBackground();
+    this.transition = new ScreenTransition();
+    this.introCinematic = new IntroCinematic();
+    this.starfield.init();
     this.inputManager.init();
   }
 
@@ -69,7 +82,9 @@ export class GameManager {
     this.p2Score = 0;
     this.roundRecords = [];
     this.currentRoundIndex = 0;
-    this.gameOrder = this.shuffleGames(this.registry);
+    const firstHalf = this.shuffleGames(this.registry);
+    const secondHalf = this.shuffleGames(this.registry);
+    this.gameOrder = [...firstHalf, ...secondHalf];
     this.beginRoundIntro();
   }
 
@@ -123,6 +138,7 @@ export class GameManager {
       this.currentRoundIndex + 1,
       this.gameOrder.length,
       this.tweenManager,
+      info.id,
     );
     this.hud.setRound(this.currentRoundIndex + 1, this.gameOrder.length, info.name);
     this.hud.setScores(this.p1Score, this.p2Score);
@@ -152,6 +168,9 @@ export class GameManager {
     const info = this.gameOrder[this.currentRoundIndex];
     if (!info) return;
     this.currentGame = info.factory();
+    if (this.mode === 'TOURNAMENT') {
+      this.currentGame.setDurationMultiplier?.(0.5);
+    }
     this.currentGame.init(this.canvas, this.ctx);
     audioManager.playWhistle();
   }
@@ -191,7 +210,11 @@ export class GameManager {
   }
 
   update(dt: number): void {
+    this.lastDt = dt;
     switch (this.state) {
+      case 'INTRO':
+        this.updateIntro(dt);
+        break;
       case 'MENU':
         this.updateMenu(dt);
         break;
@@ -214,7 +237,15 @@ export class GameManager {
 
     particleSystem.update(dt);
     this.shakeOffset = screenShake.update(dt);
+    this.transition.update(dt);
     this.inputManager.update();
+  }
+
+  private updateIntro(dt: number): void {
+    if (this.introCinematic.update(dt)) {
+      this.introCinematic.destroy();
+      this.state = 'MENU';
+    }
   }
 
   private updateMenu(dt: number): void {
@@ -300,7 +331,12 @@ export class GameManager {
     ctx.save();
     ctx.translate(this.shakeOffset.ox, this.shakeOffset.oy);
 
+    this.starfield.render(ctx, this.lastDt);
+
     switch (this.state) {
+      case 'INTRO':
+        this.introCinematic.render(ctx);
+        break;
       case 'MENU':
         this.menuScreen.render(ctx);
         break;
@@ -323,6 +359,7 @@ export class GameManager {
     }
 
     particleSystem.render(ctx);
+    this.transition.render(ctx);
     ctx.restore();
   }
 
@@ -330,7 +367,8 @@ export class GameManager {
     const w = ctx.canvas.width;
     const h = ctx.canvas.height;
 
-    ctx.fillStyle = '#050508';
+    // 80% opacity black overlay
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.8)';
     ctx.fillRect(0, 0, w, h);
 
     ctx.save();
@@ -338,8 +376,21 @@ export class GameManager {
     ctx.scale(this.countdownScale, this.countdownScale);
 
     const label = this.countdownValue > 0 ? `${this.countdownValue}` : 'GO!';
+
+    // Colored numbers: 3=DANGER, 2=WARNING, 1=NEXARI_CYAN, GO!=SUCCESS
+    let color: string;
+    if (this.countdownValue === 3) {
+      color = COLORS.DANGER;
+    } else if (this.countdownValue === 2) {
+      color = COLORS.WARNING;
+    } else if (this.countdownValue === 1) {
+      color = COLORS.NEXARI_CYAN;
+    } else {
+      color = COLORS.SUCCESS;
+    }
+
     ctx.font = '700 120px Orbitron, sans-serif';
-    ctx.fillStyle = this.countdownValue > 0 ? '#ffffff' : '#00e5ff';
+    ctx.fillStyle = color;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     ctx.fillText(label, 0, 0);
@@ -380,6 +431,7 @@ export class GameManager {
   destroy(): void {
     this.inputManager.destroy();
     this.currentGame?.destroy();
+    this.introCinematic.destroy();
     this.tweenManager.clear();
     particleSystem.clear();
     screenShake.reset();

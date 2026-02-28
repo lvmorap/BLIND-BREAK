@@ -11,17 +11,19 @@ const CY = H / 2;
 const ARENA_RADIUS_INITIAL = 280;
 const ARENA_RADIUS_FINAL = ARENA_RADIUS_INITIAL * 0.4; // 112
 const ARENA_SHRINK_DURATION = 60; // seconds
-const ARENA_COLOR = '#c4a44a';
-const DANGER_COLOR_R = 204;
-const DANGER_COLOR_G = 34;
-const DANGER_COLOR_B = 0;
-const BG_COLOR = '#0a0a12';
+const BG_COLOR = '#0a0205';
 
 // Players
 const PLAYER_RADIUS = 20;
 const PLAYER_SPEED = 250;
 const P1_COLOR = '#00e5ff';
 const P2_COLOR = '#ff4466';
+
+// Shockwave
+const SHOCKWAVE_DURATION = 0.4;
+
+// Embers
+const EMBER_COUNT = 30;
 
 // Dash
 const DASH_IMPULSE = 700;
@@ -41,7 +43,7 @@ const ZONE_SIZE_INTERVAL = 4;
 const ZONE_RADIUS_SMALL = 25;
 const ZONE_RADIUS_LARGE = 50;
 const ZONE_PTS_PER_SEC = 2;
-const ZONE_COLOR = '#44cc44';
+const ZONE_COLOR = '#8844cc';
 
 // Earthquakes
 const QUAKE_INTERVAL = 6;
@@ -82,6 +84,29 @@ interface ScoringZone {
   dirTimer: number;
   sizeTimer: number;
   large: boolean;
+}
+
+interface Shockwave {
+  x: number;
+  y: number;
+  timer: number;
+  maxTimer: number;
+}
+
+interface Ember {
+  x: number;
+  y: number;
+  size: number;
+  speed: number;
+  phase: number;
+  amplitude: number;
+}
+
+interface LavaBubble {
+  angle: number;
+  timer: number;
+  maxTimer: number;
+  size: number;
 }
 
 // --- Vector helpers ---
@@ -130,6 +155,8 @@ function randomDir(): Vec2 {
 
 export class SumoGame implements IGame {
   private input!: InputManager;
+  private durationMult = 1;
+  private effectiveShrinkDuration = ARENA_SHRINK_DURATION;
   private timer = GAME_DURATION;
   private finished = false;
   private winner: 1 | 2 | null = null;
@@ -145,11 +172,29 @@ export class SumoGame implements IGame {
   private quakeShakeTimer = 0;
   private quakeShakeOffset: Vec2 = v2(0, 0);
 
+  private shockwaves: Shockwave[] = [];
+  private collisionShakeTimer = 0;
+  private collisionShakeOffset: Vec2 = v2(0, 0);
+  private embers: Ember[] = [];
+  private lavaBubbles: LavaBubble[] = [];
+
+  private lavaImg: HTMLImageElement | null = null;
+  private lavaCracksImg: HTMLImageElement | null = null;
+  private stoneImg: HTMLImageElement | null = null;
+  private volcanoBgImg: HTMLImageElement | null = null;
+  private lavaPattern: CanvasPattern | null = null;
+  private stonePattern: CanvasPattern | null = null;
+
+  setDurationMultiplier(mult: number): void {
+    this.durationMult = mult;
+  }
+
   init(_canvas: HTMLCanvasElement, _ctx: CanvasRenderingContext2D): void {
     this.input = new InputManager();
     this.input.init();
 
-    this.timer = GAME_DURATION;
+    this.timer = GAME_DURATION * this.durationMult;
+    this.effectiveShrinkDuration = ARENA_SHRINK_DURATION * this.durationMult;
     this.finished = false;
     this.winner = null;
     this.arenaRadius = ARENA_RADIUS_INITIAL;
@@ -157,6 +202,35 @@ export class SumoGame implements IGame {
     this.quakeWarning = false;
     this.quakeShakeTimer = 0;
     this.quakeShakeOffset = v2(0, 0);
+
+    this.shockwaves = [];
+    this.collisionShakeTimer = 0;
+    this.collisionShakeOffset = v2(0, 0);
+    this.embers = [];
+    this.lavaBubbles = [];
+    for (let i = 0; i < EMBER_COUNT; i++) {
+      this.embers.push({
+        x: Math.random() * W,
+        y: Math.random() * H,
+        size: 1 + Math.random() * 2.5,
+        speed: 20 + Math.random() * 40,
+        phase: Math.random() * Math.PI * 2,
+        amplitude: 10 + Math.random() * 20,
+      });
+    }
+
+    // Load volcano textures
+    const loadImg = (src: string): HTMLImageElement => {
+      const img = new Image();
+      img.src = src;
+      return img;
+    };
+    this.lavaImg = loadImg('./assets/volcano/lava.png');
+    this.lavaCracksImg = loadImg('./assets/volcano/lava-cracks.png');
+    this.stoneImg = loadImg('./assets/volcano/stone.png');
+    this.volcanoBgImg = loadImg('./assets/volcano/volcano-bg.svg');
+    this.lavaPattern = null;
+    this.stonePattern = null;
 
     this.p1 = this.createFighter(-ARENA_RADIUS_INITIAL * 0.5, 0);
     this.p2 = this.createFighter(ARENA_RADIUS_INITIAL * 0.5, 0);
@@ -206,8 +280,8 @@ export class SumoGame implements IGame {
     }
 
     // Arena shrink
-    const elapsed = GAME_DURATION - this.timer;
-    const t = Math.min(elapsed / ARENA_SHRINK_DURATION, 1);
+    const elapsed = GAME_DURATION * this.durationMult - this.timer;
+    const t = Math.min(elapsed / this.effectiveShrinkDuration, 1);
     this.arenaRadius = ARENA_RADIUS_INITIAL + (ARENA_RADIUS_FINAL - ARENA_RADIUS_INITIAL) * t;
 
     // Input
@@ -254,6 +328,26 @@ export class SumoGame implements IGame {
 
     // Earthquakes
     this.updateEarthquake(dt);
+
+    // Shockwaves
+    for (let i = this.shockwaves.length - 1; i >= 0; i--) {
+      const sw = this.shockwaves[i];
+      if (!sw) continue;
+      sw.timer -= dt;
+      if (sw.timer <= 0) {
+        this.shockwaves.splice(i, 1);
+      }
+    }
+
+    // Collision screen shake
+    if (this.collisionShakeTimer > 0) {
+      this.collisionShakeTimer -= dt;
+      const amp = 4 * (this.collisionShakeTimer / 0.15);
+      const t = this.elapsed * 1000;
+      this.collisionShakeOffset = v2(Math.sin(t * 0.07) * amp, Math.cos(t * 0.09) * amp);
+    } else {
+      this.collisionShakeOffset = v2(0, 0);
+    }
   }
 
   private applyMovement(
@@ -340,6 +434,18 @@ export class SumoGame implements IGame {
         this.p1.vel = v2Add(this.p1.vel, v2Scale(normal, -MIN_PUSH));
         this.p2.vel = v2Add(this.p2.vel, v2Scale(normal, MIN_PUSH));
       }
+
+      // Shockwave at midpoint
+      const mid = v2Scale(v2Add(this.p1.pos, this.p2.pos), 0.5);
+      this.shockwaves.push({
+        x: mid.x,
+        y: mid.y,
+        timer: SHOCKWAVE_DURATION,
+        maxTimer: SHOCKWAVE_DURATION,
+      });
+
+      // Collision screen shake
+      this.collisionShakeTimer = 0.15;
     }
   }
 
@@ -463,8 +569,8 @@ export class SumoGame implements IGame {
   // --- Rendering ---
 
   render(ctx: CanvasRenderingContext2D): void {
-    const ox = this.quakeShakeOffset.x;
-    const oy = this.quakeShakeOffset.y;
+    const ox = this.quakeShakeOffset.x + this.collisionShakeOffset.x;
+    const oy = this.quakeShakeOffset.y + this.collisionShakeOffset.y;
 
     ctx.save();
     ctx.translate(ox, oy);
@@ -473,6 +579,7 @@ export class SumoGame implements IGame {
     this.drawArena(ctx);
     this.drawDangerGlow(ctx);
     this.drawZone(ctx);
+    this.drawShockwaves(ctx);
     this.drawPlayer(ctx, this.p1, P1_COLOR);
     this.drawPlayer(ctx, this.p2, P2_COLOR);
 
@@ -487,43 +594,192 @@ export class SumoGame implements IGame {
   }
 
   private drawBackground(ctx: CanvasRenderingContext2D): void {
-    ctx.fillStyle = BG_COLOR;
+    // Volcano SVG background or dark volcanic gradient
+    if (this.volcanoBgImg?.complete && this.volcanoBgImg.naturalWidth > 0) {
+      ctx.drawImage(this.volcanoBgImg, -10, -10, W + 20, H + 20);
+    } else {
+      const bg = ctx.createLinearGradient(0, 0, 0, H);
+      bg.addColorStop(0, BG_COLOR);
+      bg.addColorStop(1, '#3a1505');
+      ctx.fillStyle = bg;
+      ctx.fillRect(-10, -10, W + 20, H + 20);
+    }
+
+    // Volcanic glow from crater (center-top)
+    const glow = ctx.createRadialGradient(CX, 0, 0, CX, 0, H * 0.8);
+    glow.addColorStop(0, 'rgba(255, 102, 0, 0.4)');
+    glow.addColorStop(0.5, 'rgba(255, 60, 0, 0.12)');
+    glow.addColorStop(1, 'rgba(255, 60, 0, 0)');
+    ctx.fillStyle = glow;
     ctx.fillRect(-10, -10, W + 20, H + 20);
+
+    // Floating ember particles
+    for (const ember of this.embers) {
+      ember.y -= ember.speed * 0.016;
+      ember.x += Math.sin(this.elapsed * 2 + ember.phase) * ember.amplitude * 0.016;
+      if (ember.y < -10) {
+        ember.y = H + 10;
+        ember.x = Math.random() * W;
+      }
+      const flicker = 0.5 + 0.5 * Math.sin(this.elapsed * 4 + ember.phase);
+      const r = 255;
+      const g = Math.floor(80 + flicker * 120);
+      ctx.globalAlpha = 0.4 + flicker * 0.4;
+      ctx.fillStyle = `rgb(${r}, ${g}, 0)`;
+      ctx.beginPath();
+      ctx.arc(ember.x, ember.y, ember.size, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.globalAlpha = 1;
   }
 
   private drawArena(ctx: CanvasRenderingContext2D): void {
     const r = this.arenaRadius;
 
-    // Gradient fill
-    const grad = ctx.createRadialGradient(CX, CY, 0, CX, CY, r);
-    grad.addColorStop(0, '#d4b45a');
-    grad.addColorStop(0.7, ARENA_COLOR);
-    grad.addColorStop(1, '#8a7230');
+    // Lava underneath (larger area)
+    const lavaR = r + 40;
+    ctx.save();
+    ctx.beginPath();
+    ctx.arc(CX, CY, lavaR, 0, Math.PI * 2);
+    if (this.lavaImg?.complete && this.lavaImg.naturalWidth > 0) {
+      if (!this.lavaPattern) {
+        this.lavaPattern = ctx.createPattern(this.lavaImg, 'repeat');
+      }
+      if (this.lavaPattern) {
+        ctx.fillStyle = this.lavaPattern;
+      } else {
+        ctx.fillStyle = '#cc4400';
+      }
+    } else {
+      const lavaGrad = ctx.createRadialGradient(CX, CY, 0, CX, CY, lavaR);
+      lavaGrad.addColorStop(0, '#ff6600');
+      lavaGrad.addColorStop(1, '#aa2200');
+      ctx.fillStyle = lavaGrad;
+    }
+    ctx.fill();
+    ctx.restore();
 
+    // Stone platform with glowing lava edge
+    ctx.save();
+    ctx.shadowColor = '#ff6600';
+    ctx.shadowBlur = 25;
+    ctx.beginPath();
+    ctx.arc(CX, CY, r + 2, 0, Math.PI * 2);
+    ctx.strokeStyle = '#ff6600';
+    ctx.lineWidth = 4;
+    ctx.stroke();
+    ctx.restore();
+
+    // Stone platform fill
+    ctx.save();
     ctx.beginPath();
     ctx.arc(CX, CY, r, 0, Math.PI * 2);
-    ctx.fillStyle = grad;
-    ctx.fill();
+    ctx.clip();
 
-    // Ring border
-    ctx.strokeStyle = '#6b5820';
+    if (this.stoneImg?.complete && this.stoneImg.naturalWidth > 0) {
+      if (!this.stonePattern) {
+        this.stonePattern = ctx.createPattern(this.stoneImg, 'repeat');
+      }
+      if (this.stonePattern) {
+        ctx.fillStyle = this.stonePattern;
+      } else {
+        ctx.fillStyle = '#3a3530';
+      }
+    } else {
+      const stoneGrad = ctx.createRadialGradient(CX, CY, 0, CX, CY, r);
+      stoneGrad.addColorStop(0, '#3a3530');
+      stoneGrad.addColorStop(1, '#252018');
+      ctx.fillStyle = stoneGrad;
+    }
+    ctx.fillRect(CX - r, CY - r, r * 2, r * 2);
+    ctx.restore();
+
+    // Stone border
+    ctx.beginPath();
+    ctx.arc(CX, CY, r, 0, Math.PI * 2);
+    ctx.strokeStyle = '#5a3a1a';
     ctx.lineWidth = 3;
     ctx.stroke();
   }
 
   private drawDangerGlow(ctx: CanvasRenderingContext2D): void {
     const r = this.arenaRadius;
-    const outerR = r + 60;
+    const outerR = ARENA_RADIUS_INITIAL + 20;
 
-    const grad = ctx.createRadialGradient(CX, CY, r, CX, CY, outerR);
-    grad.addColorStop(0, `rgba(${DANGER_COLOR_R}, ${DANGER_COLOR_G}, ${DANGER_COLOR_B}, 0.5)`);
-    grad.addColorStop(1, `rgba(${DANGER_COLOR_R}, ${DANGER_COLOR_G}, ${DANGER_COLOR_B}, 0)`);
+    // Danger level: 0 at full size, 1 at minimum size
+    const danger = Math.max(
+      0,
+      Math.min(
+        1,
+        1 - (this.arenaRadius - ARENA_RADIUS_FINAL) / (ARENA_RADIUS_INITIAL - ARENA_RADIUS_FINAL),
+      ),
+    );
+    const pulse = 0.5 + 0.5 * Math.sin(this.elapsed * (4 + danger * 8));
 
+    // Lava encroaching: fill between current arena radius and original radius
+    if (r < ARENA_RADIUS_INITIAL - 2) {
+      ctx.save();
+      ctx.beginPath();
+      ctx.arc(CX, CY, outerR, 0, Math.PI * 2);
+      ctx.arc(CX, CY, r, 0, Math.PI * 2, true);
+      ctx.clip();
+
+      if (this.lavaCracksImg?.complete && this.lavaCracksImg.naturalWidth > 0) {
+        const pattern = ctx.createPattern(this.lavaCracksImg, 'repeat');
+        if (pattern) {
+          ctx.fillStyle = pattern;
+        } else {
+          ctx.fillStyle = '#aa3300';
+        }
+      } else {
+        const lavaGrad = ctx.createRadialGradient(CX, CY, r, CX, CY, outerR);
+        lavaGrad.addColorStop(0, '#ff6600');
+        lavaGrad.addColorStop(1, '#661100');
+        ctx.fillStyle = lavaGrad;
+      }
+      ctx.fillRect(CX - outerR, CY - outerR, outerR * 2, outerR * 2);
+      ctx.restore();
+    }
+
+    // Glowing edge of stone platform
+    const edgeGlow = ctx.createRadialGradient(CX, CY, r - 15, CX, CY, r + 5);
+    const edgeIntensity = 0.3 + danger * 0.5 * pulse;
+    edgeGlow.addColorStop(0, 'rgba(255, 100, 0, 0)');
+    edgeGlow.addColorStop(0.7, `rgba(255, 80, 0, ${edgeIntensity})`);
+    edgeGlow.addColorStop(1, `rgba(255, 40, 0, ${edgeIntensity * 0.5})`);
     ctx.beginPath();
-    ctx.arc(CX, CY, outerR, 0, Math.PI * 2);
-    ctx.arc(CX, CY, r, 0, Math.PI * 2, true);
-    ctx.fillStyle = grad;
+    ctx.arc(CX, CY, r + 5, 0, Math.PI * 2);
+    ctx.fillStyle = edgeGlow;
     ctx.fill();
+
+    // Animated lava bubbles popping at the edge
+    while (this.lavaBubbles.length < 4) {
+      this.lavaBubbles.push({
+        angle: Math.random() * Math.PI * 2,
+        timer: Math.random() * 1.5,
+        maxTimer: 0.8 + Math.random() * 0.7,
+        size: 3 + Math.random() * 5,
+      });
+    }
+    for (let i = this.lavaBubbles.length - 1; i >= 0; i--) {
+      const b = this.lavaBubbles[i];
+      if (!b) continue;
+      b.timer -= 0.016;
+      if (b.timer <= 0) {
+        b.angle = Math.random() * Math.PI * 2;
+        b.timer = b.maxTimer;
+        b.size = 3 + Math.random() * 5;
+      }
+      const progress = 1 - b.timer / b.maxTimer;
+      const bx = CX + Math.cos(b.angle) * (r + 5);
+      const by = CY + Math.sin(b.angle) * (r + 5);
+      const alpha = progress < 0.5 ? progress * 2 : (1 - progress) * 2;
+      const bSize = b.size * (0.5 + progress * 0.5);
+      ctx.beginPath();
+      ctx.arc(bx, by, bSize, 0, Math.PI * 2);
+      ctx.fillStyle = `rgba(255, 120, 0, ${alpha * 0.7})`;
+      ctx.fill();
+    }
   }
 
   private drawZone(ctx: CanvasRenderingContext2D): void {
@@ -531,19 +787,22 @@ export class SumoGame implements IGame {
     const pulse = 1 + Math.sin(this.elapsed * 6) * 0.1;
     const r = z.radius * pulse;
 
-    // Glow
+    // Violet glow
     const grad = ctx.createRadialGradient(z.pos.x, z.pos.y, 0, z.pos.x, z.pos.y, r * 1.4);
-    grad.addColorStop(0, 'rgba(68, 204, 68, 0.35)');
-    grad.addColorStop(1, 'rgba(68, 204, 68, 0)');
+    grad.addColorStop(0, 'rgba(136, 68, 204, 0.35)');
+    grad.addColorStop(1, 'rgba(136, 68, 204, 0)');
     ctx.beginPath();
     ctx.arc(z.pos.x, z.pos.y, r * 1.4, 0, Math.PI * 2);
     ctx.fillStyle = grad;
     ctx.fill();
 
-    // Main circle
+    // Obsidian circle
+    const obsGrad = ctx.createRadialGradient(z.pos.x, z.pos.y, 0, z.pos.x, z.pos.y, r);
+    obsGrad.addColorStop(0, 'rgba(42, 16, 53, 0.5)');
+    obsGrad.addColorStop(1, 'rgba(42, 16, 53, 0.25)');
     ctx.beginPath();
     ctx.arc(z.pos.x, z.pos.y, r, 0, Math.PI * 2);
-    ctx.fillStyle = 'rgba(68, 204, 68, 0.3)';
+    ctx.fillStyle = obsGrad;
     ctx.fill();
     ctx.strokeStyle = ZONE_COLOR;
     ctx.lineWidth = 2;
@@ -553,47 +812,120 @@ export class SumoGame implements IGame {
   private drawPlayer(ctx: CanvasRenderingContext2D, f: Fighter, color: string): void {
     const r = PLAYER_RADIUS;
     const jumping = f.jumpTimer > 0;
-    const drawR = jumping ? r * (1 + 0.3 * Math.sin(f.jumpTimer * 20)) : r;
+    const jumpProgress = jumping ? Math.sin((f.jumpTimer / JUMP_DURATION) * Math.PI) : 0;
 
-    // Player circle
+    // Facing angle for rotation
+    const angle = Math.atan2(f.facing.y, f.facing.x);
+
+    ctx.save();
+    ctx.translate(f.pos.x, f.pos.y);
+
+    // Jump shadow
+    if (jumping) {
+      const shadowScale = 1 - jumpProgress * 0.3;
+      ctx.save();
+      ctx.scale(shadowScale, shadowScale * 0.5);
+      ctx.beginPath();
+      ctx.arc(0, r * 0.5, r * 0.9, 0, Math.PI * 2);
+      ctx.fillStyle = 'rgba(0,0,0,0.3)';
+      ctx.fill();
+      ctx.restore();
+    }
+
+    // Float offset when jumping
+    const floatY = jumping ? -jumpProgress * 12 : 0;
+    ctx.translate(0, floatY);
+
+    // Rotate to facing direction (offset by -PI/2 so "up" on the body faces the direction)
+    ctx.rotate(angle + Math.PI / 2);
+
+    const bodyR = r * 0.75;
+    const skinTone = '#d4956a';
+
+    // --- Arms (ellipses extending to sides) ---
+    ctx.save();
+    // Left arm
+    ctx.save();
+    ctx.translate(-bodyR * 0.85, -bodyR * 0.1);
+    ctx.rotate(-0.3);
     ctx.beginPath();
-    ctx.arc(f.pos.x, f.pos.y, drawR, 0, Math.PI * 2);
-    ctx.fillStyle = jumping ? color + '99' : color;
+    ctx.ellipse(0, 0, bodyR * 0.55, bodyR * 0.3, 0, 0, Math.PI * 2);
+    ctx.fillStyle = skinTone;
     ctx.fill();
-    ctx.strokeStyle = '#ffffff44';
-    ctx.lineWidth = 2;
-    ctx.stroke();
-
-    // Direction indicator triangle
-    const tipDist = drawR + 8;
-    const tipX = f.pos.x + f.facing.x * tipDist;
-    const tipY = f.pos.y + f.facing.y * tipDist;
-    const perpX = -f.facing.y;
-    const perpY = f.facing.x;
-    const baseBack = 5;
-    const baseWidth = 5;
-
+    ctx.restore();
+    // Right arm
+    ctx.save();
+    ctx.translate(bodyR * 0.85, -bodyR * 0.1);
+    ctx.rotate(0.3);
     ctx.beginPath();
-    ctx.moveTo(tipX, tipY);
-    ctx.lineTo(
-      f.pos.x + f.facing.x * (tipDist - baseBack) + perpX * baseWidth,
-      f.pos.y + f.facing.y * (tipDist - baseBack) + perpY * baseWidth,
-    );
-    ctx.lineTo(
-      f.pos.x + f.facing.x * (tipDist - baseBack) - perpX * baseWidth,
-      f.pos.y + f.facing.y * (tipDist - baseBack) - perpY * baseWidth,
-    );
-    ctx.closePath();
-    ctx.fillStyle = '#ffffffcc';
+    ctx.ellipse(0, 0, bodyR * 0.55, bodyR * 0.3, 0, 0, Math.PI * 2);
+    ctx.fillStyle = skinTone;
+    ctx.fill();
+    ctx.restore();
+    ctx.restore();
+
+    // --- Body (main circle with shading) ---
+    const bodyGrad = ctx.createRadialGradient(-bodyR * 0.3, -bodyR * 0.3, bodyR * 0.1, 0, 0, bodyR);
+    bodyGrad.addColorStop(0, '#e8b080');
+    bodyGrad.addColorStop(0.7, skinTone);
+    bodyGrad.addColorStop(1, '#a06838');
+    ctx.beginPath();
+    ctx.arc(0, 0, bodyR, 0, Math.PI * 2);
+    ctx.fillStyle = bodyGrad;
     ctx.fill();
 
-    // Dash cooldown indicator (arc around player)
+    // --- Mawashi (belt) across body middle ---
+    ctx.beginPath();
+    ctx.rect(-bodyR * 0.85, -bodyR * 0.15, bodyR * 1.7, bodyR * 0.35);
+    ctx.fillStyle = color;
+    ctx.fill();
+
+    // --- Head (small circle at top/front of body) ---
+    const headR = bodyR * 0.45;
+    const headY = -bodyR * 0.75;
+    const headGrad = ctx.createRadialGradient(
+      -headR * 0.25,
+      headY - headR * 0.25,
+      headR * 0.1,
+      0,
+      headY,
+      headR,
+    );
+    headGrad.addColorStop(0, '#e8b080');
+    headGrad.addColorStop(1, '#b07848');
+    ctx.beginPath();
+    ctx.arc(0, headY, headR, 0, Math.PI * 2);
+    ctx.fillStyle = headGrad;
+    ctx.fill();
+
+    // Topknot (chonmage)
+    ctx.beginPath();
+    ctx.ellipse(0, headY - headR * 0.8, headR * 0.25, headR * 0.35, 0, 0, Math.PI * 2);
+    ctx.fillStyle = '#2a1a0a';
+    ctx.fill();
+
+    ctx.restore();
+
+    // Dash cooldown indicator (arc around player, drawn without rotation)
     if (f.dashCooldown > 0) {
       const frac = f.dashCooldown / DASH_COOLDOWN;
       ctx.beginPath();
-      ctx.arc(f.pos.x, f.pos.y, drawR + 4, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * frac);
+      ctx.arc(f.pos.x, f.pos.y + floatY, r + 4, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * frac);
       ctx.strokeStyle = '#ffffff66';
       ctx.lineWidth = 2;
+      ctx.stroke();
+    }
+  }
+
+  private drawShockwaves(ctx: CanvasRenderingContext2D): void {
+    for (const sw of this.shockwaves) {
+      const progress = 1 - sw.timer / sw.maxTimer;
+      const radius = 10 + progress * 60;
+      const alpha = 1 - progress;
+      ctx.beginPath();
+      ctx.arc(sw.x, sw.y, radius, 0, Math.PI * 2);
+      ctx.strokeStyle = `rgba(255, 255, 255, ${alpha * 0.8})`;
+      ctx.lineWidth = 3 * (1 - progress) + 1;
       ctx.stroke();
     }
   }
@@ -628,10 +960,10 @@ export class SumoGame implements IGame {
   }
 
   private drawEarthquakeWarning(ctx: CanvasRenderingContext2D): void {
-    // Red border flash
+    // Orange/yellow lava-colored border flash
     const alpha = 0.3 + 0.3 * Math.sin(this.elapsed * 20);
     ctx.save();
-    ctx.strokeStyle = `rgba(255, 40, 40, ${alpha})`;
+    ctx.strokeStyle = `rgba(255, 160, 20, ${alpha})`;
     ctx.lineWidth = 6;
     ctx.strokeRect(3, 3, W - 6, H - 6);
 
@@ -639,8 +971,8 @@ export class SumoGame implements IGame {
     ctx.font = 'bold 24px Orbitron, monospace';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'bottom';
-    ctx.fillStyle = `rgba(255, 80, 80, ${0.6 + 0.4 * Math.sin(this.elapsed * 15)})`;
-    ctx.fillText('⚠ EARTHQUAKE', CX, H - 20);
+    ctx.fillStyle = `rgba(255, 140, 40, ${0.6 + 0.4 * Math.sin(this.elapsed * 15)})`;
+    ctx.fillText('⚠ ERUPTION', CX, H - 20);
 
     ctx.restore();
   }

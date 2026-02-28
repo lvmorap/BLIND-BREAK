@@ -24,12 +24,19 @@ import { aiThink } from '../../ai/ai.ts';
 import type { IGame } from '../IGame.ts';
 
 export class BlindBreakGame implements IGame {
+  private durationMult = 1;
+
+  setDurationMultiplier(mult: number): void {
+    this.durationMult = mult;
+  }
+
   init(_canvas: HTMLCanvasElement, _ctx: CanvasRenderingContext2D): void {
     prerenderFelt();
     prerenderWood();
     resetGame();
     resetBalls();
     setupInput();
+    state.maxRounds = Math.max(1, Math.ceil(C.ROUNDS * this.durationMult));
     state.tutorialSeen = true;
     state.gameMode = 'VS_LOCAL';
     state.gameState = 'COUNTDOWN';

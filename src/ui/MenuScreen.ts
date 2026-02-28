@@ -1,44 +1,27 @@
 import type { GameInfo } from '../games/IGame.ts';
+import { StarfieldBackground } from '../core/StarfieldBackground.ts';
+import { COLORS } from '../core/Colors.ts';
 
-const P1_COLOR = '#00e5ff';
-const P2_COLOR = '#ff4466';
-const TEXT_COLOR = '#e0d5c0';
-const BG_COLOR = '#050508';
-
-interface MenuParticle {
-  x: number;
-  y: number;
-  vx: number;
-  vy: number;
-  size: number;
-  alpha: number;
-}
+const P1_COLOR = COLORS.P1_CYAN;
+const P2_COLOR = COLORS.P2_MAGENTA;
 
 export type MenuAction = { type: 'tournament' } | { type: 'freeplay'; gameId: string } | null;
 
 export class MenuScreen {
   private games: GameInfo[];
-  private particles: MenuParticle[] = [];
+  private starfield: StarfieldBackground;
   private selectedIndex: number = 0;
   private mode: 'select' | 'freeplay' = 'select';
   private animTime: number = 0;
+  private cardOffsets: number[];
+  private cardTargets: number[];
 
   constructor(games: GameInfo[]) {
     this.games = games;
-    this.initParticles();
-  }
-
-  private initParticles(): void {
-    for (let i = 0; i < 40; i++) {
-      this.particles.push({
-        x: Math.random() * 1280,
-        y: Math.random() * 720,
-        vx: (Math.random() - 0.5) * 15,
-        vy: (Math.random() - 0.5) * 15,
-        size: Math.random() * 2 + 0.5,
-        alpha: Math.random() * 0.3 + 0.05,
-      });
-    }
+    this.starfield = new StarfieldBackground();
+    this.starfield.init(180);
+    this.cardOffsets = games.map((_, i) => 20 + i * 20);
+    this.cardTargets = games.map(() => 0);
   }
 
   update(
@@ -52,12 +35,13 @@ export class MenuScreen {
   ): MenuAction {
     this.animTime += dt;
 
-    // Update particles
-    for (const p of this.particles) {
-      p.x += p.vx * dt;
-      p.y += p.vy * dt;
-      if (p.x < 0 || p.x > 1280) p.vx *= -1;
-      if (p.y < 0 || p.y > 720) p.vy *= -1;
+    // Animate card slide-in (staggered)
+    for (let i = 0; i < this.cardOffsets.length; i++) {
+      const offset = this.cardOffsets[i];
+      const target = this.cardTargets[i];
+      if (offset !== undefined && target !== undefined) {
+        this.cardOffsets[i] = offset + (target - offset) * Math.min(dt * (4 + i * 0.5), 1);
+      }
     }
 
     if (this.mode === 'select') {
@@ -69,7 +53,6 @@ export class MenuScreen {
         return null;
       }
     } else {
-      // Free play mode - navigate game cards
       if (leftPressed && this.selectedIndex > 0) {
         this.selectedIndex--;
       }
@@ -101,32 +84,34 @@ export class MenuScreen {
     const w = ctx.canvas.width;
     const h = ctx.canvas.height;
 
-    // Background
-    ctx.fillStyle = BG_COLOR;
-    ctx.fillRect(0, 0, w, h);
+    // Starfield background
+    this.starfield.render(ctx, 0.016);
 
-    // Particles
-    for (const p of this.particles) {
-      ctx.globalAlpha = p.alpha;
-      ctx.fillStyle = '#ffffff';
-      ctx.beginPath();
-      ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
-      ctx.fill();
-    }
-    ctx.globalAlpha = 1;
-
-    // Title
+    // Title: BLIND BREAK
     ctx.textAlign = 'center';
-    ctx.font = '700 52px Orbitron, sans-serif';
+    ctx.font = '900 72px Orbitron, sans-serif';
+    ctx.save();
+    ctx.shadowColor = COLORS.NEXARI_CYAN;
+    ctx.shadowBlur = 30;
     ctx.fillStyle = '#ffffff';
-    ctx.fillText('SPORT FUSION', w / 2, 90);
-    ctx.font = '700 36px Orbitron, sans-serif';
-    ctx.fillStyle = P1_COLOR;
-    ctx.fillText('ARENA', w / 2, 132);
+    ctx.fillText('BLIND BREAK', w / 2, 90);
+    ctx.restore();
+
+    // Subtitle: NEXUS ARENA TOURNAMENT
+    ctx.font = '700 24px Orbitron, sans-serif';
+    ctx.fillStyle = COLORS.NEXARI_PURPLE;
+    ctx.fillText('NEXUS ARENA TOURNAMENT', w / 2, 125);
+
+    // Tagline
+    ctx.font = '400 18px Rajdhani, sans-serif';
+    ctx.globalAlpha = 0.7;
+    ctx.fillStyle = '#ffffff';
+    ctx.fillText('"SIX WORLDS. ONE CHAMPION."', w / 2, 155);
+    ctx.globalAlpha = 1;
 
     // Game cards - 3x2 grid
     const gridX = w / 2 - 300;
-    const gridY = 170;
+    const gridY = 180;
     const cardW = 180;
     const cardH = 140;
     const gapX = 20;
@@ -137,19 +122,44 @@ export class MenuScreen {
       if (!game) continue;
       const col = i % 3;
       const row = Math.floor(i / 3);
+      const slideOffset = this.cardOffsets[i] ?? 0;
       const cx = gridX + col * (cardW + gapX);
-      const cy = gridY + row * (cardH + gapY);
+      const cy = gridY + row * (cardH + gapY) + slideOffset;
 
       const isSelected = this.mode === 'freeplay' && i === this.selectedIndex;
+      const scale = isSelected ? 1.04 : 1;
+
+      ctx.save();
+      const centerX = cx + cardW / 2;
+      const centerY = cy + cardH / 2;
+      ctx.translate(centerX, centerY);
+      ctx.scale(scale, scale);
+      ctx.translate(-centerX, -centerY);
 
       // Card background
       ctx.fillStyle = isSelected ? 'rgba(255,255,255,0.12)' : 'rgba(255,255,255,0.04)';
-      ctx.strokeStyle = isSelected ? game.color : 'rgba(255,255,255,0.1)';
-      ctx.lineWidth = isSelected ? 2 : 1;
       ctx.beginPath();
       ctx.roundRect(cx, cy, cardW, cardH, 8);
       ctx.fill();
-      ctx.stroke();
+
+      // Border glow
+      if (isSelected) {
+        ctx.save();
+        ctx.shadowColor = game.color;
+        ctx.shadowBlur = 18;
+        ctx.strokeStyle = game.color;
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.roundRect(cx, cy, cardW, cardH, 8);
+        ctx.stroke();
+        ctx.restore();
+      } else {
+        ctx.strokeStyle = 'rgba(255,255,255,0.1)';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.roundRect(cx, cy, cardW, cardH, 8);
+        ctx.stroke();
+      }
 
       // Icon
       ctx.font = '40px serif';
@@ -166,24 +176,24 @@ export class MenuScreen {
       ctx.font = '400 12px Rajdhani, sans-serif';
       ctx.fillStyle = '#888888';
       ctx.fillText(game.subtitle, cx + cardW / 2, cy + 105);
+
+      ctx.restore();
     }
 
     // Buttons area
     const btnY = gridY + 2 * (cardH + gapY) + 30;
 
     if (this.mode === 'select') {
-      // Tournament button
       this.drawButton(ctx, w / 2 - 170, btnY, 150, 44, 'TOURNAMENT', P1_COLOR);
-      // Free play button
       this.drawButton(ctx, w / 2 + 20, btnY, 150, 44, 'FREE PLAY', P2_COLOR);
 
       ctx.font = '400 14px Rajdhani, sans-serif';
-      ctx.fillStyle = TEXT_COLOR;
+      ctx.fillStyle = '#e0d5c0';
       ctx.textAlign = 'center';
       ctx.fillText('P1: F = Tournament  |  P1: G = Free Play', w / 2, btnY + 70);
     } else {
       ctx.font = '500 18px Rajdhani, sans-serif';
-      ctx.fillStyle = TEXT_COLOR;
+      ctx.fillStyle = '#e0d5c0';
       ctx.textAlign = 'center';
       ctx.fillText('SELECT A GAME — WASD/Arrows to navigate, F/RShift to confirm', w / 2, btnY);
       ctx.font = '400 14px Rajdhani, sans-serif';
@@ -191,14 +201,35 @@ export class MenuScreen {
       ctx.fillText('G / Enter to go back', w / 2, btnY + 24);
     }
 
-    // Player colors legend
-    ctx.font = '500 14px Rajdhani, sans-serif';
-    ctx.textAlign = 'left';
+    // Bottom bar: P1 vs P2 score tracker pills
+    const pillW = 120;
+    const pillH = 28;
+    const pillY = h - 44;
+
+    // P1 pill
+    ctx.fillStyle = P1_COLOR + '33';
+    ctx.strokeStyle = P1_COLOR;
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.roundRect(20, pillY, pillW, pillH, 14);
+    ctx.fill();
+    ctx.stroke();
+    ctx.font = '600 14px Rajdhani, sans-serif';
     ctx.fillStyle = P1_COLOR;
-    ctx.fillText('● P1: WASD + F/G', 20, h - 20);
-    ctx.textAlign = 'right';
+    ctx.textAlign = 'center';
+    ctx.fillText('● P1: WASD', 20 + pillW / 2, pillY + 19);
+
+    // P2 pill
+    ctx.fillStyle = P2_COLOR + '33';
+    ctx.strokeStyle = P2_COLOR;
+    ctx.beginPath();
+    ctx.roundRect(w - 20 - pillW, pillY, pillW, pillH, 14);
+    ctx.fill();
+    ctx.stroke();
+    ctx.font = '600 14px Rajdhani, sans-serif';
     ctx.fillStyle = P2_COLOR;
-    ctx.fillText('P2: Arrows + RShift/Enter ●', w - 20, h - 20);
+    ctx.textAlign = 'center';
+    ctx.fillText('P2: Arrows ●', w - 20 - pillW / 2, pillY + 19);
   }
 
   private drawButton(

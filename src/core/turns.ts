@@ -10,7 +10,7 @@ export function resolveTurn(): void {
   const now = performance.now();
   state.lightZones = state.lightZones.filter((z) => now - z.createdAt < C.TRAIL_DURATION);
 
-  if (allObjectBallsSunk() || state.currentRound > C.ROUNDS) {
+  if (allObjectBallsSunk() || state.currentRound > state.maxRounds) {
     state.gameState = 'ENDSCREEN';
     return;
   }
@@ -26,7 +26,7 @@ export function resolveTurn(): void {
     } else {
       state.currentTurn = 'PLAYER';
       state.currentRound++;
-      if (state.currentRound > C.ROUNDS) {
+      if (state.currentRound > state.maxRounds) {
         state.gameState = 'ENDSCREEN';
         return;
       }
@@ -39,7 +39,7 @@ export function resolveTurn(): void {
     } else {
       state.currentTurn = 'PLAYER';
       state.currentRound++;
-      if (state.currentRound > C.ROUNDS) {
+      if (state.currentRound > state.maxRounds) {
         state.gameState = 'ENDSCREEN';
         return;
       }

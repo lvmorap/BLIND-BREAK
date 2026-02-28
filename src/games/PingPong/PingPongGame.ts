@@ -8,7 +8,8 @@ const H = 720;
 const PADDLE_W = 15;
 const PADDLE_H = 80;
 const PADDLE_SPEED = 400;
-const PADDLE_MARGIN = 40;
+const PADDLE_R = 6;
+const PADDLE_MARGIN = 20;
 
 const BALL_RADIUS = 8;
 const BALL_INITIAL_SPEED = 350;
@@ -23,9 +24,12 @@ const LAUNCH_ANGLE_SPREAD_DEG = 40;
 const POST_SCORE_FREEZE = 0.5;
 const MATCH_DURATION = 60;
 
-const TABLE_COLOR = '#1a5c1a';
-const NET_COLOR = '#ffffff';
-const BALL_COLOR = '#ff8800';
+const NET_W = 4;
+const STAR_COUNT = 40;
+const GRID_SPACING = 60;
+
+const BG_COLOR = '#080818';
+const GRID_COLOR = '#00f5ff1a';
 const P1_COLOR = '#00e5ff';
 const P2_COLOR = '#ff4466';
 const HUD_TEXT_COLOR = '#e0d5c0';
@@ -44,6 +48,13 @@ interface Paddle {
   h: number;
 }
 
+interface Star {
+  x: number;
+  y: number;
+  len: number;
+  opacity: number;
+}
+
 function clamp(v: number, min: number, max: number): number {
   return v < min ? min : v > max ? max : v;
 }
@@ -51,6 +62,7 @@ function clamp(v: number, min: number, max: number): number {
 // ── Game ───────────────────────────────────────────────────────────────────
 export class PingPongGame implements IGame {
   private input: InputManager = new InputManager();
+  private durationMult = 1;
 
   // Paddles (x,y = top-left corner)
   private p1: Paddle = { x: 0, y: 0, w: PADDLE_W, h: PADDLE_H };
@@ -72,9 +84,27 @@ export class PingPongGame implements IGame {
   // Post-score freeze
   private freezeTimer: number = 0;
 
+  // Visuals
+  private stars: Star[] = [];
+
   // ── IGame lifecycle ────────────────────────────────────────────────────
+  setDurationMultiplier(mult: number): void {
+    this.durationMult = mult;
+  }
+
   init(_canvas: HTMLCanvasElement, _ctx: CanvasRenderingContext2D): void {
     this.input.init();
+    this.timer = MATCH_DURATION * this.durationMult;
+
+    this.stars = [];
+    for (let i = 0; i < STAR_COUNT; i++) {
+      this.stars.push({
+        x: Math.random() * W,
+        y: Math.random() * H,
+        len: 10 + Math.random() * 70,
+        opacity: 0.3 + Math.random() * 0.3,
+      });
+    }
 
     this.p1.x = PADDLE_MARGIN;
     this.p1.y = (H - PADDLE_H) / 2;
@@ -107,7 +137,7 @@ export class PingPongGame implements IGame {
       return;
     }
 
-    // ── Paddle movement ──────────────────────────────────────────────────
+    // ── Paddle movement (vertical + horizontal) ──────────────────────────
     const p1In = this.input.getPlayer1();
     const p2In = this.input.getPlayer2();
 
@@ -115,9 +145,17 @@ export class PingPongGame implements IGame {
     if (p1In.down) this.p1.y += PADDLE_SPEED * dt;
     this.p1.y = clamp(this.p1.y, 0, H - PADDLE_H);
 
+    if (p1In.left) this.p1.x -= PADDLE_SPEED * dt;
+    if (p1In.right) this.p1.x += PADDLE_SPEED * dt;
+    this.p1.x = clamp(this.p1.x, PADDLE_MARGIN, W / 2 - NET_W / 2 - PADDLE_W);
+
     if (p2In.up) this.p2.y -= PADDLE_SPEED * dt;
     if (p2In.down) this.p2.y += PADDLE_SPEED * dt;
     this.p2.y = clamp(this.p2.y, 0, H - PADDLE_H);
+
+    if (p2In.left) this.p2.x -= PADDLE_SPEED * dt;
+    if (p2In.right) this.p2.x += PADDLE_SPEED * dt;
+    this.p2.x = clamp(this.p2.x, W / 2 + NET_W / 2, W - PADDLE_MARGIN - PADDLE_W);
 
     // ── Ball trail ───────────────────────────────────────────────────────
     this.trail.push({ x: this.ball.x, y: this.ball.y });
@@ -138,50 +176,52 @@ export class PingPongGame implements IGame {
       this.ballVy = -Math.abs(this.ballVy);
     }
 
-    // ── Paddle collisions (AABB) ─────────────────────────────────────────
-    this.checkPaddleCollision(this.p1, 1);
-    this.checkPaddleCollision(this.p2, -1);
+    // ── Paddle collisions ─────────────────────────────────────────────────
+    this.checkPaddleCollision(this.p1);
+    this.checkPaddleCollision(this.p2);
 
     // ── Scoring ──────────────────────────────────────────────────────────
     if (this.ball.x + BALL_RADIUS < 0) {
       this.scoreP2++;
-      this.resetAfterScore(1); // launch toward scorer (P2 → rightward)
+      this.resetAfterScore(1);
     } else if (this.ball.x - BALL_RADIUS > W) {
       this.scoreP1++;
-      this.resetAfterScore(-1); // launch toward scorer (P1 → leftward)
+      this.resetAfterScore(-1);
     }
 
     this.input.update();
   }
 
   render(ctx: CanvasRenderingContext2D): void {
-    // ── Table background ─────────────────────────────────────────────────
-    ctx.fillStyle = '#0d2e0d';
+    // ── Deep space background ─────────────────────────────────────────────
+    ctx.fillStyle = BG_COLOR;
     ctx.fillRect(0, 0, W, H);
 
-    ctx.fillStyle = TABLE_COLOR;
-    ctx.fillRect(20, 20, W - 40, H - 40);
+    // Star streaks
+    for (const star of this.stars) {
+      ctx.strokeStyle = `rgba(255, 255, 255, ${star.opacity})`;
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(star.x, star.y);
+      ctx.lineTo(star.x + star.len, star.y);
+      ctx.stroke();
+    }
 
-    // Table border lines
-    ctx.strokeStyle = '#ffffff';
-    ctx.lineWidth = 2;
-    ctx.strokeRect(20, 20, W - 40, H - 40);
+    // Neon grid floor
+    this.drawGrid(ctx);
 
-    // Center line (dashed net)
+    // Center net (energy barrier)
     ctx.save();
-    ctx.setLineDash([12, 8]);
-    ctx.strokeStyle = NET_COLOR;
-    ctx.lineWidth = 2;
+    ctx.setLineDash([10, 10]);
+    ctx.strokeStyle = '#00f5ff66';
+    ctx.lineWidth = NET_W;
+    ctx.shadowColor = '#00f5ff';
+    ctx.shadowBlur = 8;
     ctx.beginPath();
-    ctx.moveTo(W / 2, 20);
-    ctx.lineTo(W / 2, H - 20);
+    ctx.moveTo(W / 2, 0);
+    ctx.lineTo(W / 2, H);
     ctx.stroke();
     ctx.restore();
-
-    // Net posts
-    ctx.fillStyle = '#cccccc';
-    ctx.fillRect(W / 2 - 3, 14, 6, 12);
-    ctx.fillRect(W / 2 - 3, H - 26, 6, 12);
 
     // ── HUD background strip ─────────────────────────────────────────────
     ctx.fillStyle = HUD_BG_COLOR;
@@ -210,29 +250,23 @@ export class PingPongGame implements IGame {
     ctx.textAlign = 'left';
     ctx.fillText(String(this.scoreP2), W / 2 + 60, 30);
 
-    // ── Ball trail ───────────────────────────────────────────────────────
+    // ── Ball trail (fading gradient) ─────────────────────────────────────
     for (let i = 0; i < this.trail.length; i++) {
       const t = this.trail[i];
       if (!t) continue;
-      const alpha = ((i + 1) / this.trail.length) * 0.35;
-      const r = BALL_RADIUS * ((i + 1) / this.trail.length);
+      const frac = (i + 1) / this.trail.length;
+      const alpha = frac * 0.6;
+      const r = BALL_RADIUS * frac;
       ctx.beginPath();
       ctx.arc(t.x, t.y, r, 0, Math.PI * 2);
-      ctx.fillStyle = `rgba(255, 136, 0, ${alpha})`;
+      ctx.fillStyle = `rgba(255, 255, 255, ${alpha})`;
       ctx.fill();
     }
 
-    // ── Ball ─────────────────────────────────────────────────────────────
-    ctx.save();
-    ctx.shadowColor = BALL_COLOR;
-    ctx.shadowBlur = 14;
-    ctx.beginPath();
-    ctx.arc(this.ball.x, this.ball.y, BALL_RADIUS, 0, Math.PI * 2);
-    ctx.fillStyle = BALL_COLOR;
-    ctx.fill();
-    ctx.restore();
+    // ── Pulsar orb ball ──────────────────────────────────────────────────
+    this.drawBall(ctx);
 
-    // ── Paddles with glow ────────────────────────────────────────────────
+    // ── Energy shield paddles ────────────────────────────────────────────
     this.drawPaddle(ctx, this.p1, P1_COLOR);
     this.drawPaddle(ctx, this.p2, P2_COLOR);
 
@@ -268,12 +302,55 @@ export class PingPongGame implements IGame {
 
   // ── Private helpers ──────────────────────────────────────────────────────
 
+  private drawGrid(ctx: CanvasRenderingContext2D): void {
+    ctx.strokeStyle = GRID_COLOR;
+    ctx.lineWidth = 1;
+    for (let y = GRID_SPACING; y < H; y += GRID_SPACING) {
+      ctx.beginPath();
+      ctx.moveTo(0, y);
+      ctx.lineTo(W, y);
+      ctx.stroke();
+    }
+    for (let x = GRID_SPACING; x < W; x += GRID_SPACING) {
+      ctx.beginPath();
+      ctx.moveTo(x, 0);
+      ctx.lineTo(x, H);
+      ctx.stroke();
+    }
+  }
+
+  private drawBall(ctx: CanvasRenderingContext2D): void {
+    // Concentric glow layers
+    const layers: { radius: number; color: string }[] = [
+      { radius: BALL_RADIUS * 3, color: 'rgba(255, 255, 255, 0.06)' },
+      { radius: BALL_RADIUS * 2, color: 'rgba(255, 255, 255, 0.12)' },
+      { radius: BALL_RADIUS * 1.4, color: 'rgba(255, 255, 255, 0.25)' },
+    ];
+    for (const layer of layers) {
+      ctx.beginPath();
+      ctx.arc(this.ball.x, this.ball.y, layer.radius, 0, Math.PI * 2);
+      ctx.fillStyle = layer.color;
+      ctx.fill();
+    }
+    // Bright white center
+    ctx.save();
+    ctx.shadowColor = '#ffffff';
+    ctx.shadowBlur = 18;
+    ctx.beginPath();
+    ctx.arc(this.ball.x, this.ball.y, BALL_RADIUS, 0, Math.PI * 2);
+    ctx.fillStyle = '#ffffff';
+    ctx.fill();
+    ctx.restore();
+  }
+
   private drawPaddle(ctx: CanvasRenderingContext2D, paddle: Paddle, color: string): void {
     ctx.save();
     ctx.shadowColor = color;
-    ctx.shadowBlur = 18;
+    ctx.shadowBlur = 15;
     ctx.fillStyle = color;
-    ctx.fillRect(paddle.x, paddle.y, paddle.w, paddle.h);
+    ctx.beginPath();
+    ctx.roundRect(paddle.x, paddle.y, paddle.w, paddle.h, PADDLE_R);
+    ctx.fill();
     ctx.restore();
   }
 
@@ -283,7 +360,6 @@ export class PingPongGame implements IGame {
     this.ballSpeed = BALL_INITIAL_SPEED;
     this.trail = [];
 
-    // Slight random angle (±20°)
     const angle = ((Math.random() - 0.5) * LAUNCH_ANGLE_SPREAD_DEG * Math.PI) / 180;
     this.ballVx = Math.cos(angle) * this.ballSpeed * Math.sign(dirX);
     this.ballVy = Math.sin(angle) * this.ballSpeed;
@@ -294,8 +370,8 @@ export class PingPongGame implements IGame {
     this.freezeTimer = POST_SCORE_FREEZE;
   }
 
-  private checkPaddleCollision(paddle: Paddle, reflectDirX: number): void {
-    // AABB overlap test between ball bounding-box and paddle rect
+  /** Resolve ball–paddle collision using minimum-penetration AABB. */
+  private checkPaddleCollision(paddle: Paddle): void {
     const bLeft = this.ball.x - BALL_RADIUS;
     const bRight = this.ball.x + BALL_RADIUS;
     const bTop = this.ball.y - BALL_RADIUS;
@@ -307,32 +383,47 @@ export class PingPongGame implements IGame {
     const pBottom = paddle.y + paddle.h;
 
     if (bRight < pLeft || bLeft > pRight || bBottom < pTop || bTop > pBottom) {
-      return; // no overlap
+      return;
     }
 
-    // Only trigger if ball is moving toward the paddle
-    if (reflectDirX > 0 && this.ballVx > 0) return;
-    if (reflectDirX < 0 && this.ballVx < 0) return;
+    // Penetration depth on each axis side
+    const oL = bRight - pLeft;
+    const oR = pRight - bLeft;
+    const oT = bBottom - pTop;
+    const oB = pBottom - bTop;
+    const minO = Math.min(oL, oR, oT, oB);
 
-    // Impact position normalized to [-1, 1] (center = 0, edges = ±1)
-    const paddleCenterY = paddle.y + paddle.h / 2;
-    const relativeY = (this.ball.y - paddleCenterY) / (paddle.h / 2);
-    const clampedRel = clamp(relativeY, -1, 1);
-
-    // Angle based on hit position
-    const angle = clampedRel * MAX_ANGLE_RAD;
-
-    // Accelerate
-    this.ballSpeed = Math.min(this.ballSpeed * BALL_SPEED_MULT, BALL_MAX_SPEED);
-
-    this.ballVx = Math.cos(angle) * this.ballSpeed * reflectDirX;
-    this.ballVy = Math.sin(angle) * this.ballSpeed;
-
-    // Push ball out of paddle to prevent multi-hit
-    if (reflectDirX > 0) {
-      this.ball.x = pRight + BALL_RADIUS;
+    if (minO === oT || minO === oB) {
+      // Top / bottom face — simple vertical bounce
+      if (minO === oT) {
+        this.ball.y = pTop - BALL_RADIUS;
+        this.ballVy = -Math.abs(this.ballVy);
+      } else {
+        this.ball.y = pBottom + BALL_RADIUS;
+        this.ballVy = Math.abs(this.ballVy);
+      }
     } else {
-      this.ball.x = pLeft - BALL_RADIUS;
+      // Left / right face — pong-style angle reflection
+      const reflectDirX = minO === oL ? -1 : 1;
+
+      // Skip if ball already moving away from this face
+      if (reflectDirX === -1 && this.ballVx < 0) return;
+      if (reflectDirX === 1 && this.ballVx > 0) return;
+
+      const paddleCenterY = paddle.y + paddle.h / 2;
+      const relativeY = (this.ball.y - paddleCenterY) / (paddle.h / 2);
+      const clampedRel = clamp(relativeY, -1, 1);
+      const angle = clampedRel * MAX_ANGLE_RAD;
+
+      this.ballSpeed = Math.min(this.ballSpeed * BALL_SPEED_MULT, BALL_MAX_SPEED);
+      this.ballVx = Math.cos(angle) * this.ballSpeed * reflectDirX;
+      this.ballVy = Math.sin(angle) * this.ballSpeed;
+
+      if (reflectDirX === -1) {
+        this.ball.x = pLeft - BALL_RADIUS;
+      } else {
+        this.ball.x = pRight + BALL_RADIUS;
+      }
     }
   }
 }

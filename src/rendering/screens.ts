@@ -339,7 +339,7 @@ export function drawEndScreen(t: number): void {
   );
 
   const remainingBalls = state.balls.filter((b) => b.id > 0 && b.alive).length;
-  if (remainingBalls === 0 && state.currentRound <= C.ROUNDS) {
+  if (remainingBalls === 0 && state.currentRound <= state.maxRounds) {
     ctx.fillStyle = '#ffd700';
     ctx.font = '13px Rajdhani';
     ctx.fillText(

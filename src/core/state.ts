@@ -41,6 +41,7 @@ export const state = {
   colorBlind: false,
   paused: false,
   currentRound: 1,
+  maxRounds: 7,
   currentTurn: 'PLAYER' as TurnOwner,
   turnPhase: 'AIM' as TurnPhase,
   playerScore: 0,
@@ -189,6 +190,7 @@ export function resetGame(): void {
   state.particles = [];
   state.scorePopups = [];
   state.currentRound = 1;
+  state.maxRounds = C.ROUNDS;
   state.currentTurn = 'PLAYER';
   state.turnPhase = 'AIM';
   state.playerScore = 0;
