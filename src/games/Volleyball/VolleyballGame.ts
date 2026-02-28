@@ -366,7 +366,14 @@ export class VolleyballGame implements IGame {
   }
 
   private computeAIInput(player: Player): PlayerInput {
-    const inp: PlayerInput = { up: false, down: false, left: false, right: false, action1: false, action2: false };
+    const inp: PlayerInput = {
+      up: false,
+      down: false,
+      left: false,
+      right: false,
+      action1: false,
+      action2: false,
+    };
     const pcx = player.x + PLAYER_W / 2;
     const pcy = player.y + PLAYER_H / 2;
     const isVertical = this.gravity === 'DOWN' || this.gravity === 'UP';
@@ -378,9 +385,7 @@ export class VolleyballGame implements IGame {
       else if (this.ball.x > pcx + trackThreshold) inp.right = true;
 
       // Jump when ball is above (DOWN gravity) or below (UP gravity)
-      const verticalDist = this.gravity === 'DOWN'
-        ? pcy - this.ball.y
-        : this.ball.y - pcy;
+      const verticalDist = this.gravity === 'DOWN' ? pcy - this.ball.y : this.ball.y - pcy;
       if (verticalDist > PLAYER_H * 1.5) inp.action2 = true;
     } else {
       // Move up/down to track ball Y
