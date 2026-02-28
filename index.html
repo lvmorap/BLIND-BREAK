@@ -197,7 +197,8 @@ function resetBalls() {
       vx:0, vy:0, color:BALL_COLORS[i+1], num:BALL_NAMES[i+1],
       lastLitX: bx, lastLitY: by,
       alive:true, sinking:false, sinkTimer:0, sinkScale:1,
-      trail:[], squash:{sx:1,sy:1,timer:0}
+      trail:[], squash:{sx:1,sy:1,timer:0},
+      visAlpha: 1.0
     });
   }
 }
@@ -592,6 +593,14 @@ function updatePhysics(dt) {
     // Ball trail particles
     spawnBallTrail(b);
     updateSquash(b, realDt);
+
+    // Smooth visibility fade for object balls
+    if (b.id > 0) {
+      const targetAlpha = getLightLevel(b.x, b.y) > 0.1 ? 1.0 : 0.0;
+      const fadeSpeed = targetAlpha > b.visAlpha ? 0.08 : 0.04; // fade in faster than fade out
+      b.visAlpha += (targetAlpha - b.visAlpha) * fadeSpeed * dt * 60;
+      b.visAlpha = Math.max(0, Math.min(1, b.visAlpha));
+    }
   }
 
   // Ball-ball collisions
@@ -2008,9 +2017,9 @@ function drawScene(t) {
   drawWallSconces();
   drawTable();
   drawLamps();
-  drawGhostBalls();
   drawBalls();
   if (gameState === 'PLAYING') drawDarkness();
+  drawGhostBalls();
   drawParticles();
   drawNeonSign(t);
   drawAimLine();
