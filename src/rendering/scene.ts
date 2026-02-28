@@ -1,7 +1,14 @@
 import { C } from '../core/constants.ts';
 import { state } from '../core/state.ts';
 import { ctx } from './canvas.ts';
-import { drawBrickWall, drawWallSconces, drawTable, drawLamps, drawNeonSign, drawTableOutline } from './table.ts';
+import {
+  drawBrickWall,
+  drawWallSconces,
+  drawTable,
+  drawLamps,
+  drawNeonSign,
+  drawTableOutline,
+} from './table.ts';
 import { drawBalls } from './balls.ts';
 import { drawDarkness } from './darkness.ts';
 import {
