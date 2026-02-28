@@ -1,5 +1,5 @@
 import { C } from '../core/constants.ts';
-import { state, resetGame, getCueBall } from '../core/state.ts';
+import { state, resetGame, getCueBall, isHumanTurn } from '../core/state.ts';
 import { initAudio } from '../core/audio.ts';
 import { fireShot, fireRecon } from '../core/physics.ts';
 import { canvas } from '../rendering/canvas.ts';
@@ -32,37 +32,53 @@ export function setupInput(): void {
         state.tutorialSeen = true;
         return;
       }
-      if (!state.tutorialSeen) {
-        state.gameState = 'TUTORIAL';
-        state.tutorialStep = 0;
+      const btnW = 200;
+      const btnH = 36;
+      const btnGap = 16;
+      const btnY1 = 400;
+      const btnY2 = btnY1 + btnH + btnGap;
+      const btnX = C.W / 2 - btnW / 2;
+      const inBtn1 =
+        state.mouseX >= btnX &&
+        state.mouseX <= btnX + btnW &&
+        state.mouseY >= btnY1 &&
+        state.mouseY <= btnY1 + btnH;
+      const inBtn2 =
+        state.mouseX >= btnX &&
+        state.mouseX <= btnX + btnW &&
+        state.mouseY >= btnY2 &&
+        state.mouseY <= btnY2 + btnH;
+      if (inBtn1 || inBtn2) {
         state.tutorialSeen = true;
-      } else {
+        state.gameMode = inBtn1 ? 'VS_AI' : 'VS_LOCAL';
         resetGame();
         state.gameState = 'COUNTDOWN';
         state.countdownVal = 3;
         state.countdownTimer = 0;
+      } else if (!state.tutorialSeen) {
+        state.gameState = 'TUTORIAL';
+        state.tutorialStep = 0;
+        state.tutorialSeen = true;
       }
       return;
     }
 
     if (state.gameState === 'ENDSCREEN') {
-      resetGame();
-      state.gameState = 'COUNTDOWN';
-      state.countdownVal = 3;
-      state.countdownTimer = 0;
+      state.gameState = 'MENU';
       return;
     }
 
     if (
       state.gameState !== 'PLAYING' ||
-      state.currentTurn !== 'PLAYER' ||
+      !isHumanTurn() ||
       state.turnPhase !== 'AIM'
     ) {
       return;
     }
 
+    const reconUsed = state.currentTurn === 'PLAYER' ? state.playerReconUsed : state.aiReconUsed;
     if (
-      !state.playerReconUsed &&
+      !reconUsed &&
       state.mouseX >= 15 &&
       state.mouseX <= 95 &&
       state.mouseY >= 15 &&
@@ -99,7 +115,7 @@ export function setupInput(): void {
     if (
       state.gameState === 'PLAYING' &&
       state.turnPhase === 'AIM' &&
-      state.currentTurn === 'PLAYER'
+      isHumanTurn()
     ) {
       if (state.mouseX >= 15 && state.mouseX <= 95 && state.mouseY >= 15 && state.mouseY <= 45) {
         canvas.style.cursor = 'pointer';
@@ -119,7 +135,7 @@ export function setupInput(): void {
       state.dragging &&
       state.charging &&
       state.gameState === 'PLAYING' &&
-      state.currentTurn === 'PLAYER' &&
+      isHumanTurn() &&
       state.turnPhase === 'AIM'
     ) {
       const cue = getCueBall();
@@ -217,10 +233,7 @@ export function setupInput(): void {
           state.countdownTimer = 0;
         }
       } else if (state.gameState === 'ENDSCREEN') {
-        resetGame();
-        state.gameState = 'COUNTDOWN';
-        state.countdownVal = 3;
-        state.countdownTimer = 0;
+        state.gameState = 'MENU';
       }
     }
   });

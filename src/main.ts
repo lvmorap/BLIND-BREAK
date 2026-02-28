@@ -1,5 +1,5 @@
 import { C } from './core/constants.ts';
-import { state, resetBalls } from './core/state.ts';
+import { state, resetBalls, isHumanTurn } from './core/state.ts';
 import { updatePhysics, allBallsStopped, updateSquash, updateShake } from './core/physics.ts';
 import { updateParticles, updatePopups, spawnDust } from './rendering/effects.ts';
 import { prerenderFelt, prerenderWood } from './rendering/textures.ts';
@@ -53,7 +53,7 @@ function update(dt: number): void {
 
   if (state.gameState !== 'PLAYING') return;
 
-  if (state.dragging && state.currentTurn === 'PLAYER') {
+  if (state.dragging && isHumanTurn()) {
     const cue = state.balls[0];
     if (cue && cue.alive) {
       const dx = state.mouseX - cue.x;
@@ -76,7 +76,7 @@ function update(dt: number): void {
     }
   }
 
-  if (state.currentTurn === 'AI' && state.aiState === 'THINKING') {
+  if (state.gameMode === 'VS_AI' && state.currentTurn === 'AI' && state.aiState === 'THINKING') {
     state.aiThinkTimer -= dt * 1000;
     if (state.aiThinkTimer <= 0) {
       aiThink();

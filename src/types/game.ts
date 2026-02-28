@@ -231,6 +231,11 @@ export interface EndStats {
 export type GameState = 'PRELOAD' | 'MENU' | 'TUTORIAL' | 'COUNTDOWN' | 'PLAYING' | 'ENDSCREEN';
 
 /**
+ * Game mode selection
+ */
+export type GameMode = 'VS_AI' | 'VS_LOCAL';
+
+/**
  * Turn ownership
  */
 export type TurnOwner = 'PLAYER' | 'AI';

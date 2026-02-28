@@ -102,14 +102,49 @@ export function drawMenu(t: number): void {
   rules2.forEach((r, i) => ctx.fillText(r, col2x, 282 + i * 20));
 
   const flash = 0.5 + 0.5 * Math.sin(t * 0.004);
-  ctx.fillStyle = `rgba(255,255,255,${flash})`;
-  ctx.font = 'bold 22px Orbitron';
+
+  const btnW = 200;
+  const btnH = 36;
+  const btnGap = 16;
+  const btnY1 = 400;
+  const btnY2 = btnY1 + btnH + btnGap;
+  const btnX = C.W / 2 - btnW / 2;
+
+  const isHover1 =
+    state.mouseX >= btnX &&
+    state.mouseX <= btnX + btnW &&
+    state.mouseY >= btnY1 &&
+    state.mouseY <= btnY1 + btnH;
+  const isHover2 =
+    state.mouseX >= btnX &&
+    state.mouseX <= btnX + btnW &&
+    state.mouseY >= btnY2 &&
+    state.mouseY <= btnY2 + btnH;
+
+  ctx.fillStyle = isHover1 ? 'rgba(0,229,255,0.15)' : 'rgba(255,255,255,0.05)';
+  ctx.fillRect(btnX, btnY1, btnW, btnH);
+  ctx.strokeStyle = isHover1 ? '#00e5ff' : '#555';
+  ctx.lineWidth = 1;
+  ctx.strokeRect(btnX, btnY1, btnW, btnH);
+  ctx.fillStyle = `rgba(0,229,255,${0.7 + flash * 0.3})`;
+  ctx.font = 'bold 16px Orbitron';
   ctx.textAlign = 'center';
-  ctx.fillText('PRESS SPACE TO BEGIN', C.W / 2, 430);
+  ctx.fillText('VS AI', C.W / 2, btnY1 + 24);
+
+  ctx.fillStyle = isHover2 ? 'rgba(255,68,102,0.15)' : 'rgba(255,255,255,0.05)';
+  ctx.fillRect(btnX, btnY2, btnW, btnH);
+  ctx.strokeStyle = isHover2 ? '#ff4466' : '#555';
+  ctx.lineWidth = 1;
+  ctx.strokeRect(btnX, btnY2, btnW, btnH);
+  ctx.fillStyle = `rgba(255,68,102,${0.7 + flash * 0.3})`;
+  ctx.font = 'bold 16px Orbitron';
+  ctx.textAlign = 'center';
+  ctx.fillText('2 PLAYERS', C.W / 2, btnY2 + 24);
 
   ctx.fillStyle = '#555';
   ctx.font = '13px Rajdhani';
-  ctx.fillText('vs AI · 7 Rounds · First to most points wins', C.W / 2, 460);
+  ctx.textAlign = 'center';
+  ctx.fillText('7 Rounds · First to most points wins', C.W / 2, btnY2 + btnH + 24);
 
   ctx.fillStyle = 'rgba(200,200,200,0.35)';
   ctx.font = '13px Rajdhani';
@@ -158,21 +193,38 @@ export function drawEndScreen(t: number): void {
   ctx.fillStyle = 'rgba(5,5,8,0.4)';
   ctx.fillRect(0, 0, C.W, C.H);
 
+  const isLocal = state.gameMode === 'VS_LOCAL';
+  const p1Label = isLocal ? 'PLAYER 1' : 'PLAYER';
+  const p2Label = isLocal ? 'PLAYER 2' : 'AI';
+
   const diff = state.playerScore - state.aiScore;
   let winner: string;
   let winColor: string;
-  if (diff >= 3) {
-    winner = 'YOU WIN — MASTER OF SHADOWS';
-    winColor = '#00e5ff';
-  } else if (diff >= 1) {
-    winner = 'YOU WIN — CLOSE GAME';
-    winColor = '#00e5ff';
-  } else if (diff <= -1) {
-    winner = 'AI WINS — PRACTICE MORE';
-    winColor = '#ff4466';
+  if (isLocal) {
+    if (diff >= 1) {
+      winner = 'PLAYER 1 WINS!';
+      winColor = '#00e5ff';
+    } else if (diff <= -1) {
+      winner = 'PLAYER 2 WINS!';
+      winColor = '#ff4466';
+    } else {
+      winner = 'DEAD EVEN — WELL PLAYED';
+      winColor = '#ffd700';
+    }
   } else {
-    winner = 'DEAD EVEN — WELL PLAYED';
-    winColor = '#ffd700';
+    if (diff >= 3) {
+      winner = 'YOU WIN — MASTER OF SHADOWS';
+      winColor = '#00e5ff';
+    } else if (diff >= 1) {
+      winner = 'YOU WIN — CLOSE GAME';
+      winColor = '#00e5ff';
+    } else if (diff <= -1) {
+      winner = 'AI WINS — PRACTICE MORE';
+      winColor = '#ff4466';
+    } else {
+      winner = 'DEAD EVEN — WELL PLAYED';
+      winColor = '#ffd700';
+    }
   }
 
   ctx.fillStyle = winColor;
@@ -195,21 +247,21 @@ export function drawEndScreen(t: number): void {
 
   ctx.fillStyle = '#88bbcc';
   ctx.font = '14px Rajdhani';
-  ctx.fillText('PLAYER', C.W / 2 - 120, 280);
+  ctx.fillText(p1Label, C.W / 2 - 120, 280);
   ctx.fillStyle = '#cc8899';
-  ctx.fillText('AI', C.W / 2 + 120, 280);
+  ctx.fillText(p2Label, C.W / 2 + 120, 280);
 
   ctx.fillStyle = '#88bbcc';
   ctx.font = '15px Rajdhani';
   ctx.textAlign = 'center';
   ctx.fillText(
-    `Player — Pocketed: ${state.endStats.player.lit}  Scratches: ${state.endStats.player.scratches}`,
+    `${p1Label} — Pocketed: ${state.endStats.player.lit}  Scratches: ${state.endStats.player.scratches}`,
     C.W / 2,
     320,
   );
   ctx.fillStyle = '#cc8899';
   ctx.fillText(
-    `AI — Pocketed: ${state.endStats.ai.lit}  Scratches: ${state.endStats.ai.scratches}`,
+    `${p2Label} — Pocketed: ${state.endStats.ai.lit}  Scratches: ${state.endStats.ai.scratches}`,
     C.W / 2,
     345,
   );
@@ -224,7 +276,7 @@ export function drawEndScreen(t: number): void {
   const flash = 0.5 + 0.5 * Math.sin(t * 0.004);
   ctx.fillStyle = `rgba(255,255,255,${flash})`;
   ctx.font = 'bold 20px Orbitron';
-  ctx.fillText('PRESS SPACE TO PLAY AGAIN', C.W / 2, 400);
+  ctx.fillText('PRESS SPACE FOR MENU', C.W / 2, 400);
 }
 
 export function drawPauseMenu(): void {

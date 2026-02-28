@@ -98,7 +98,8 @@ export function aiThink(): void {
 }
 
 export function drawAIThinking(): void {
-  if (state.currentTurn !== 'AI' || state.aiState !== 'THINKING') return;
+  if (state.gameMode !== 'VS_AI' || state.currentTurn !== 'AI' || state.aiState !== 'THINKING')
+    return;
 
   state.aiScanAnim += 0.05;
   const pulse = 0.5 + 0.5 * Math.sin(state.aiScanAnim * 3);

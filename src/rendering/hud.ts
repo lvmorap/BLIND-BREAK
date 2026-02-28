@@ -1,8 +1,12 @@
 import { C, FELT_L, FELT_T, FELT_R, FELT_B, FELT_CX, FELT_CY } from '../core/constants.ts';
-import { state, getCueBall } from '../core/state.ts';
+import { state, getCueBall, isHumanTurn } from '../core/state.ts';
 import { ctx } from './canvas.ts';
 
 export function drawHUD(): void {
+  const isLocal = state.gameMode === 'VS_LOCAL';
+  const p1Label = isLocal ? 'PLAYER 1' : 'PLAYER';
+  const p2Label = isLocal ? 'PLAYER 2' : 'AI';
+
   ctx.fillStyle = C.PLAYER_COLOR;
   ctx.font = 'bold 48px Orbitron';
   ctx.textAlign = 'left';
@@ -13,7 +17,7 @@ export function drawHUD(): void {
 
   ctx.fillStyle = '#88bbcc';
   ctx.font = '14px Rajdhani';
-  ctx.fillText('PLAYER', 20, C.H - 55);
+  ctx.fillText(p1Label, 20, C.H - 55);
   ctx.fillStyle = '#557788';
   ctx.font = '11px Rajdhani';
   ctx.fillText(`Pocketed: ${state.endStats.player.lit}`, 20, C.H - 68);
@@ -29,7 +33,7 @@ export function drawHUD(): void {
   ctx.fillStyle = '#cc8899';
   ctx.font = '14px Rajdhani';
   ctx.textAlign = 'right';
-  ctx.fillText('AI', C.W - 20, C.H - 55);
+  ctx.fillText(p2Label, C.W - 20, C.H - 55);
   ctx.fillStyle = '#885566';
   ctx.font = '11px Rajdhani';
   ctx.fillText(`Pocketed: ${state.endStats.ai.lit}`, C.W - 20, C.H - 68);
@@ -39,7 +43,12 @@ export function drawHUD(): void {
   ctx.textAlign = 'center';
   ctx.fillText(`ROUND ${state.currentRound}/${C.ROUNDS}`, C.W / 2, C.H - 12);
 
-  const turnText = state.currentTurn === 'PLAYER' ? 'YOUR TURN' : 'AI TURN';
+  let turnText: string;
+  if (isLocal) {
+    turnText = state.currentTurn === 'PLAYER' ? 'P1 TURN' : 'P2 TURN';
+  } else {
+    turnText = state.currentTurn === 'PLAYER' ? 'YOUR TURN' : 'AI TURN';
+  }
   const turnColor = state.currentTurn === 'PLAYER' ? C.PLAYER_COLOR : C.AI_COLOR;
   ctx.fillStyle = turnColor;
   ctx.font = 'bold 14px Orbitron';
@@ -49,7 +58,7 @@ export function drawHUD(): void {
 export function drawAimLine(): void {
   const cue = getCueBall();
   if (!cue.alive || state.turnPhase !== 'AIM') return;
-  if (state.currentTurn !== 'PLAYER' || !state.dragging) return;
+  if (!isHumanTurn() || !state.dragging) return;
 
   const dx = cue.x - state.mouseX;
   const dy = cue.y - state.mouseY;
@@ -122,7 +131,7 @@ export function drawAimLine(): void {
 }
 
 export function drawPowerBar(): void {
-  if (state.currentTurn !== 'PLAYER' || state.turnPhase !== 'AIM') return;
+  if (!isHumanTurn() || state.turnPhase !== 'AIM') return;
   if (!state.charging && !state.dragging) return;
 
   const bx = 20;
@@ -169,13 +178,15 @@ export function drawPowerBar(): void {
 }
 
 export function drawReconButton(): void {
-  if (state.currentTurn !== 'PLAYER' || state.turnPhase !== 'AIM') return;
+  if (!isHumanTurn() || state.turnPhase !== 'AIM') return;
+
+  const reconUsed = state.currentTurn === 'PLAYER' ? state.playerReconUsed : state.aiReconUsed;
 
   const bx = 15;
   const by = 15;
   const bw = 80;
   const bh = 30;
-  if (state.playerReconUsed) {
+  if (reconUsed) {
     ctx.fillStyle = 'rgba(40,40,40,0.3)';
     ctx.fillRect(bx, by, bw, bh);
     ctx.fillStyle = '#555';
@@ -226,7 +237,7 @@ export function drawReconButton(): void {
 
 export function drawChargingEffects(t: number): void {
   const cue = getCueBall();
-  if (!cue.alive || !state.charging || state.currentTurn !== 'PLAYER') return;
+  if (!cue.alive || !state.charging || !isHumanTurn()) return;
 
   const pulse = 1.0 + 0.12 * state.power * Math.sin(t * 0.01);
   ctx.save();
@@ -350,7 +361,7 @@ export function drawRoundTransition(): void {
 }
 
 export function drawFirstShotCoach(t: number): void {
-  if (!state.firstShotCoach || state.currentRound > 1 || state.currentTurn !== 'PLAYER') return;
+  if (!state.firstShotCoach || state.currentRound > 1 || !isHumanTurn()) return;
   if (state.turnPhase !== 'AIM') return;
   const cue = getCueBall();
   if (!cue.alive) return;
