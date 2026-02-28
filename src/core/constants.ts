@@ -6,7 +6,7 @@ export const C: GameConstants = {
   TABLE_W: 820,
   TABLE_H: 460,
   RAIL: 52,
-  FELT_COLOR: '#1a3020',
+  FELT_COLOR: '#0a0a1a',
   BALL_R: 11,
   FRICTION: 0.985,
   MIN_VEL: 0.15,
@@ -48,6 +48,7 @@ export const C: GameConstants = {
   TRAIL_DURATION: 3000,
   TRAIL_LIGHT_R: 30,
   MAX_DRAG_DIST: 200,
+  TURN_TIMER: 5000,
 } as const;
 
 export const TABLE_L: number = (C.W - C.TABLE_W) / 2;
@@ -64,17 +65,27 @@ export const FELT_CX: number = (FELT_L + FELT_R) / 2;
 export const FELT_CY: number = (FELT_T + FELT_B) / 2;
 
 export const BALL_COLORS: readonly string[] = [
-  '#f5f0e8',
-  '#ff2244',
-  '#ff8800',
-  '#ffdd00',
-  '#00cc55',
-  '#0088ff',
-  '#aa00ff',
-  '#ff44aa',
+  '#ffcc00',
+  '#b0b0b0',
+  '#e8c06a',
+  '#4488cc',
+  '#cc4422',
+  '#d4a56a',
+  '#c8d8e8',
+  '#88ccdd',
 ];
-export const BALL_NAMES: readonly string[] = ['CUE', '1', '2', '3', '4', '5', '6', '7'];
-export const CB_SHAPES: readonly string[] = ['', '△', '□', '◇', '☆', '⬡', '✦', '⬟'];
+export const BALL_NAMES: readonly string[] = [
+  'SOL',
+  'Mercury',
+  'Venus',
+  'Earth',
+  'Mars',
+  'Jupiter',
+  'Saturn',
+  'Uranus',
+];
+// Astronomical/astrological planet symbols for colorblind accessibility
+export const CB_SHAPES: readonly string[] = ['☀', '☿', '♀', '🜨', '♂', '♃', '♄', '♅'];
 
 export const POCKETS: readonly Pocket[] = [
   { x: FELT_L + 4, y: FELT_T + 4, r: C.POCKET_CORNER_R },

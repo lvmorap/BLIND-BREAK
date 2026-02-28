@@ -91,6 +91,10 @@ export const state = {
   scratchFlashTimer: 0,
   ballPocketedThisTurn: false,
   cueScratchedThisTurn: false,
+  turnTimer: 0,
+  supernovaActive: false,
+  supernovaTimer: 0,
+  wallRipples: [] as Array<{ x: number; y: number; time: number; maxTime: number }>,
 
   balls: [] as Ball[],
   lightZones: [] as LightZone[],
@@ -196,6 +200,10 @@ export function resetGame(): void {
   state.scratchFlashTimer = 0;
   state.ballPocketedThisTurn = false;
   state.cueScratchedThisTurn = false;
+  state.turnTimer = 0;
+  state.supernovaActive = false;
+  state.supernovaTimer = 0;
+  state.wallRipples = [];
 }
 
 export function getCueBall(): Ball {

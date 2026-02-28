@@ -4,8 +4,8 @@ import { ctx } from './canvas.ts';
 
 export function drawHUD(): void {
   const isLocal = state.gameMode === 'VS_LOCAL';
-  const p1Label = isLocal ? 'PLAYER 1' : 'PLAYER';
-  const p2Label = isLocal ? 'PLAYER 2' : 'AI';
+  const p1Label = isLocal ? 'ALIEN 1' : 'ALIEN';
+  const p2Label = isLocal ? 'ALIEN 2' : 'AI';
 
   // Player 1 score — bottom left
   ctx.fillStyle = C.PLAYER_COLOR;
@@ -21,7 +21,7 @@ export function drawHUD(): void {
   ctx.fillText(p1Label, 20, C.H - 58);
   ctx.fillStyle = '#557788';
   ctx.font = '11px Rajdhani';
-  ctx.fillText(`Pocketed: ${state.endStats.player.lit}`, 20, C.H - 72);
+  ctx.fillText(`Planets captured: ${state.endStats.player.lit}`, 20, C.H - 72);
 
   // Player 2 / AI score — bottom right
   ctx.fillStyle = C.AI_COLOR;
@@ -38,18 +38,18 @@ export function drawHUD(): void {
   ctx.fillText(p2Label, C.W - 20, C.H - 58);
   ctx.fillStyle = '#885566';
   ctx.font = '11px Rajdhani';
-  ctx.fillText(`Pocketed: ${state.endStats.ai.lit}`, C.W - 20, C.H - 72);
+  ctx.fillText(`Planets captured: ${state.endStats.ai.lit}`, C.W - 20, C.H - 72);
 
   // Round indicator — top center
   ctx.fillStyle = '#888';
   ctx.font = 'bold 14px Orbitron';
   ctx.textAlign = 'center';
-  ctx.fillText(`ROUND ${state.currentRound}/${C.ROUNDS}`, C.W / 2, 20);
+  ctx.fillText(`ORBIT ${state.currentRound}/${C.ROUNDS}`, C.W / 2, 20);
 
   // Turn indicator — below round
   let turnText: string;
   if (isLocal) {
-    turnText = state.currentTurn === 'PLAYER' ? 'P1 TURN' : 'P2 TURN';
+    turnText = state.currentTurn === 'PLAYER' ? 'ALIEN 1 TURN' : 'ALIEN 2 TURN';
   } else {
     turnText = state.currentTurn === 'PLAYER' ? 'YOUR TURN' : 'AI TURN';
   }
@@ -57,6 +57,30 @@ export function drawHUD(): void {
   ctx.fillStyle = turnColor;
   ctx.font = 'bold 13px Orbitron';
   ctx.fillText(turnText, C.W / 2, 38);
+
+  // Turn timer
+  if (state.turnPhase === 'AIM' && state.gameState === 'PLAYING') {
+    const remaining = Math.max(0, C.TURN_TIMER - state.turnTimer);
+    const secs = Math.ceil(remaining / 1000);
+    const pct = remaining / C.TURN_TIMER;
+    const timerColor = pct > 0.4 ? '#aaccff' : pct > 0.2 ? '#ffaa44' : '#ff4444';
+    const pulse = pct <= 0.2 ? 0.5 + 0.5 * Math.sin(performance.now() * 0.01) : 1;
+    ctx.fillStyle = timerColor;
+    ctx.globalAlpha = pulse;
+    ctx.font = 'bold 16px Orbitron';
+    ctx.fillText(`${secs}s`, C.W / 2, 56);
+    ctx.globalAlpha = 1;
+
+    // Timer bar
+    const barW = 100;
+    const barH = 4;
+    const barX = C.W / 2 - barW / 2;
+    const barY = 62;
+    ctx.fillStyle = 'rgba(255,255,255,0.1)';
+    ctx.fillRect(barX, barY, barW, barH);
+    ctx.fillStyle = timerColor;
+    ctx.fillRect(barX, barY, barW * pct, barH);
+  }
 }
 
 export function drawAimLine(): void {
@@ -73,13 +97,8 @@ export function drawAimLine(): void {
   const ny = dy / len;
 
   ctx.save();
-  ctx.strokeStyle = 'rgba(0,229,255,0.7)';
-  ctx.lineWidth = 2;
-  ctx.setLineDash([8, 5]);
-  ctx.lineDashOffset = -state.dashOffset;
-  ctx.beginPath();
-  ctx.moveTo(cue.x, cue.y);
 
+  // Energy ray beam (replaces dotted line)
   let endX = cue.x + nx * 400;
   let endY = cue.y + ny * 400;
 
@@ -117,18 +136,116 @@ export function drawAimLine(): void {
     }
   }
 
+  // Main energy beam
+  const beamGrad = ctx.createLinearGradient(cue.x, cue.y, endX, endY);
+  beamGrad.addColorStop(0, 'rgba(100,200,255,0.9)');
+  beamGrad.addColorStop(0.5, 'rgba(60,140,255,0.6)');
+  beamGrad.addColorStop(1, 'rgba(40,80,255,0.2)');
+
+  ctx.shadowColor = '#4488ff';
+  ctx.shadowBlur = 12;
+  ctx.strokeStyle = beamGrad;
+  ctx.lineWidth = 3;
+  ctx.beginPath();
+  ctx.moveTo(cue.x, cue.y);
   ctx.lineTo(endX, endY);
   ctx.stroke();
 
+  // Inner bright core
+  ctx.shadowBlur = 6;
+  ctx.strokeStyle = 'rgba(180,220,255,0.5)';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(cue.x, cue.y);
+  ctx.lineTo(endX, endY);
+  ctx.stroke();
+  ctx.shadowBlur = 0;
+
+  // Energy particles along beam
+  const beamLen = Math.sqrt((endX - cue.x) ** 2 + (endY - cue.y) ** 2);
+  const t = performance.now() * 0.005;
+  for (let i = 0; i < 5; i++) {
+    const frac = ((t + i * 0.2) % 1.0) * (beamLen / 400);
+    const px = cue.x + nx * frac * 400;
+    const py = cue.y + ny * frac * 400;
+    ctx.fillStyle = 'rgba(150,200,255,0.6)';
+    ctx.beginPath();
+    ctx.arc(px, py, 2, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
   if (hitWall && hitWallFound) {
-    ctx.strokeStyle = 'rgba(0,229,255,0.35)';
-    ctx.setLineDash([8, 5]);
-    ctx.lineDashOffset = -state.dashOffset;
+    ctx.strokeStyle = 'rgba(60,120,255,0.25)';
+    ctx.lineWidth = 2;
+    ctx.shadowColor = '#4488ff';
+    ctx.shadowBlur = 6;
     ctx.beginPath();
     ctx.moveTo(wallX, wallY);
     ctx.lineTo(wallX + reflNx * 120, wallY + reflNy * 120);
     ctx.stroke();
+    ctx.shadowBlur = 0;
   }
+
+  ctx.restore();
+}
+
+export function drawAlienHand(): void {
+  if (!state.dragging || !isHumanTurn() || state.turnPhase !== 'AIM') return;
+
+  const mx = state.mouseX;
+  const my = state.mouseY;
+
+  ctx.save();
+  ctx.translate(mx, my);
+
+  // Alien hand geometry: centered at cursor position
+  // Palm: ellipse 20×16px centered 8px below cursor
+  // 3 fingers: 6×14-16px ellipses extending upward, spaced 12px apart
+  // Each finger has a 7px-diameter bulbous tip
+  // Thumb: 5×10px ellipse offset left, rotated -0.6 rad
+  ctx.fillStyle = 'rgba(80,200,120,0.7)';
+  ctx.strokeStyle = 'rgba(60,160,90,0.8)';
+  ctx.lineWidth = 1;
+
+  // Palm (20×16 ellipse, cy offset +8)
+  ctx.beginPath();
+  ctx.ellipse(0, 8, 10, 8, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.stroke();
+
+  // 3 fingers at x={-6, 0, 6}, angled {-0.3, 0, 0.3} rad
+  const fingers = [
+    { x: -6, y: 0, angle: -0.3, len: 14 },
+    { x: 0, y: -2, angle: 0, len: 16 },
+    { x: 6, y: 0, angle: 0.3, len: 14 },
+  ];
+  for (const f of fingers) {
+    ctx.save();
+    ctx.translate(f.x, f.y);
+    ctx.rotate(f.angle);
+    ctx.fillStyle = 'rgba(80,200,120,0.7)';
+    ctx.beginPath();
+    ctx.ellipse(0, -f.len / 2, 3, f.len / 2, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(60,160,90,0.6)';
+    ctx.stroke();
+    // Fingertip bulb
+    ctx.fillStyle = 'rgba(100,220,140,0.6)';
+    ctx.beginPath();
+    ctx.arc(0, -f.len, 3.5, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+  }
+
+  // Thumb
+  ctx.save();
+  ctx.translate(-10, 6);
+  ctx.rotate(-0.6);
+  ctx.fillStyle = 'rgba(80,200,120,0.7)';
+  ctx.beginPath();
+  ctx.ellipse(0, -5, 2.5, 5, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.restore();
 
   ctx.restore();
 }
@@ -143,8 +260,8 @@ export function drawPowerBar(): void {
   const bh = 200;
   const now = performance.now();
 
-  ctx.fillStyle = 'rgba(0,0,0,0.5)';
-  ctx.strokeStyle = '#444';
+  ctx.fillStyle = 'rgba(0,0,20,0.6)';
+  ctx.strokeStyle = '#334';
   ctx.lineWidth = 1;
   ctx.fillRect(bx, by, bw, bh);
   ctx.strokeRect(bx, by, bw, bh);
@@ -152,8 +269,8 @@ export function drawPowerBar(): void {
   const fillH = bh * state.power;
   const pulse = 0.85 + 0.15 * Math.sin(now * 0.008);
   const grd = ctx.createLinearGradient(0, by + bh, 0, by);
-  grd.addColorStop(0, '#00ff44');
-  grd.addColorStop(0.5, '#ffdd00');
+  grd.addColorStop(0, '#4488ff');
+  grd.addColorStop(0.5, '#aa44ff');
   grd.addColorStop(1, '#ff2200');
   ctx.globalAlpha = pulse;
   ctx.fillStyle = grd;
@@ -174,10 +291,10 @@ export function drawPowerBar(): void {
   ctx.textAlign = 'center';
   ctx.fillText(String(Math.round(state.power * 100)) + '%', bx + bw / 2, by - 6);
 
-  ctx.fillStyle = '#fff';
+  ctx.fillStyle = '#aaccff';
   ctx.font = '11px Rajdhani';
   ctx.textAlign = 'center';
-  ctx.fillText('POWER', bx + bw / 2, by + bh + 16);
+  ctx.fillText('ENERGY', bx + bw / 2, by + bh + 16);
 }
 
 export function drawReconButton(): void {
@@ -187,7 +304,7 @@ export function drawReconButton(): void {
 
   const bx = 15;
   const by = 15;
-  const bw = 80;
+  const bw = 95;
   const bh = 30;
   if (reconUsed) {
     ctx.fillStyle = 'rgba(40,40,40,0.3)';
@@ -198,15 +315,15 @@ export function drawReconButton(): void {
     ctx.fillText('USED', bx + bw / 2, by + 20);
     return;
   }
-  ctx.fillStyle = state.reconMode ? 'rgba(0,229,255,0.3)' : 'rgba(255,255,255,0.1)';
-  ctx.strokeStyle = state.reconMode ? '#00e5ff' : '#666';
+  ctx.fillStyle = state.reconMode ? 'rgba(255,180,40,0.3)' : 'rgba(255,255,255,0.1)';
+  ctx.strokeStyle = state.reconMode ? '#ffaa00' : '#666';
   ctx.lineWidth = 1;
   ctx.fillRect(bx, by, bw, bh);
   ctx.strokeRect(bx, by, bw, bh);
-  ctx.fillStyle = state.reconMode ? '#00e5ff' : '#aaa';
-  ctx.font = 'bold 12px Orbitron';
+  ctx.fillStyle = state.reconMode ? '#ffaa00' : '#aaa';
+  ctx.font = 'bold 11px Orbitron';
   ctx.textAlign = 'center';
-  ctx.fillText('RECON', bx + bw / 2, by + 20);
+  ctx.fillText('SUPERNOVA', bx + bw / 2, by + 20);
 
   if (
     state.mouseX >= bx &&
@@ -217,8 +334,8 @@ export function drawReconButton(): void {
     const tx = bx;
     const ty = by + bh + 8;
     ctx.fillStyle = 'rgba(10,10,15,0.9)';
-    ctx.fillRect(tx, ty, 200, 58);
-    ctx.strokeStyle = '#ff4466';
+    ctx.fillRect(tx, ty, 220, 58);
+    ctx.strokeStyle = '#ffaa00';
     ctx.lineWidth = 3;
     ctx.beginPath();
     ctx.moveTo(tx, ty);
@@ -226,15 +343,15 @@ export function drawReconButton(): void {
     ctx.stroke();
     ctx.lineWidth = 1;
     ctx.textAlign = 'left';
-    ctx.fillStyle = '#ff4466';
+    ctx.fillStyle = '#ffaa00';
     ctx.font = 'bold 13px Rajdhani';
-    ctx.fillText('SACRIFICE THIS TURN', tx + 10, ty + 18);
+    ctx.fillText('DETONATE A SUPERNOVA', tx + 10, ty + 18);
     ctx.fillStyle = '#aaa';
     ctx.font = '12px Rajdhani';
-    ctx.fillText('to illuminate dark zones', tx + 10, ty + 34);
+    ctx.fillText('Illuminates the entire cosmos', tx + 10, ty + 34);
     ctx.fillStyle = 'rgba(170,170,170,0.6)';
     ctx.font = '11px Rajdhani';
-    ctx.fillText('One use only. Choose wisely.', tx + 10, ty + 50);
+    ctx.fillText('One use only. Sacrifices your turn.', tx + 10, ty + 50);
   }
 }
 
@@ -247,9 +364,10 @@ export function drawChargingEffects(t: number): void {
   ctx.translate(cue.x, cue.y);
   ctx.scale(pulse, pulse);
 
-  ctx.strokeStyle = `rgba(0,229,255,${0.3 + state.power * 0.5})`;
+  // Energy charge ring
+  ctx.strokeStyle = `rgba(80,160,255,${0.3 + state.power * 0.5})`;
   ctx.lineWidth = 2;
-  ctx.shadowColor = '#00e5ff';
+  ctx.shadowColor = '#4488ff';
   ctx.shadowBlur = 10 + state.power * 15;
   ctx.beginPath();
   ctx.arc(0, 0, C.BALL_R + 5 + state.power * 3, 0, Math.PI * 2);
@@ -272,9 +390,9 @@ export function drawReconBeams(t: number): void {
     const endX = state.reconBeamAnim.cx + Math.cos(a) * beamLength * progress;
     const endY = state.reconBeamAnim.cy + Math.sin(a) * beamLength * progress;
 
-    ctx.strokeStyle = `rgba(0,229,255,${0.5 * (1 - progress * 0.4)})`;
+    ctx.strokeStyle = `rgba(255,200,50,${0.5 * (1 - progress * 0.4)})`;
     ctx.lineWidth = 6;
-    ctx.shadowColor = '#00e5ff';
+    ctx.shadowColor = '#ffaa00';
     ctx.shadowBlur = 20;
     ctx.beginPath();
     ctx.moveTo(state.reconBeamAnim.cx, state.reconBeamAnim.cy);
@@ -290,6 +408,46 @@ export function drawReconBeams(t: number): void {
     ctx.stroke();
   }
   ctx.shadowBlur = 0;
+  ctx.restore();
+}
+
+export function drawSupernovaEffect(): void {
+  if (!state.supernovaActive || state.supernovaTimer <= 0) return;
+
+  const maxTime = 3000;
+  const progress = 1 - state.supernovaTimer / maxTime;
+  const cx = C.W / 2;
+  const cy = C.H / 2;
+
+  ctx.save();
+
+  if (progress < 0.3) {
+    // Expanding flash
+    const flashAlpha = (1 - progress / 0.3) * 0.8;
+    const flashR = progress * C.W;
+    const fg = ctx.createRadialGradient(cx, cy, 0, cx, cy, flashR);
+    fg.addColorStop(0, `rgba(255,255,200,${flashAlpha})`);
+    fg.addColorStop(0.3, `rgba(255,200,100,${flashAlpha * 0.6})`);
+    fg.addColorStop(1, 'rgba(255,150,50,0)');
+    ctx.fillStyle = fg;
+    ctx.fillRect(0, 0, C.W, C.H);
+  }
+
+  // Cosmic text
+  if (progress > 0.1 && progress < 0.6) {
+    const textAlpha = Math.min(1, (progress - 0.1) * 5) * Math.min(1, (0.6 - progress) * 5);
+    ctx.globalAlpha = textAlpha;
+    ctx.fillStyle = '#ffdd88';
+    ctx.font = 'bold 44px Orbitron';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.shadowColor = '#ffaa00';
+    ctx.shadowBlur = 30;
+    ctx.fillText('☀ SUPERNOVA ☀', cx, cy);
+    ctx.shadowBlur = 0;
+    ctx.globalAlpha = 1;
+  }
+
   ctx.restore();
 }
 
@@ -374,9 +532,9 @@ export function drawFirstShotCoach(t: number): void {
     const ax = cue.x;
     const ay = cue.y - 30 + bounce;
     ctx.save();
-    ctx.strokeStyle = '#00e5ff';
+    ctx.strokeStyle = '#4488ff';
     ctx.lineWidth = 3;
-    ctx.shadowColor = '#00e5ff';
+    ctx.shadowColor = '#4488ff';
     ctx.shadowBlur = 12;
     ctx.beginPath();
     ctx.moveTo(ax, ay);
@@ -386,17 +544,17 @@ export function drawFirstShotCoach(t: number): void {
     ctx.lineTo(ax + 6, ay + 8);
     ctx.stroke();
     ctx.shadowBlur = 0;
-    ctx.fillStyle = 'rgba(0,0,0,0.75)';
-    ctx.strokeStyle = 'rgba(0,229,255,0.6)';
+    ctx.fillStyle = 'rgba(0,0,10,0.8)';
+    ctx.strokeStyle = 'rgba(80,140,255,0.6)';
     ctx.lineWidth = 1;
-    const tw = 260;
+    const tw = 280;
     const th = 24;
     ctx.fillRect(ax - tw / 2, ay - th - 8, tw, th);
     ctx.strokeRect(ax - tw / 2, ay - th - 8, tw, th);
     ctx.fillStyle = '#fff';
     ctx.font = '13px Rajdhani';
     ctx.textAlign = 'center';
-    ctx.fillText('DRAG FROM BALL — FARTHER = MORE POWER', ax, ay - th + 8);
+    ctx.fillText('DRAG FROM THE SUN — FIRE THE ENERGY RAY', ax, ay - th + 8);
     ctx.restore();
   }
 }

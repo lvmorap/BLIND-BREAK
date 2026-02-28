@@ -76,7 +76,7 @@ export function setupInput(): void {
     if (
       !reconUsed &&
       state.mouseX >= 15 &&
-      state.mouseX <= 95 &&
+      state.mouseX <= 110 &&
       state.mouseY >= 15 &&
       state.mouseY <= 45
     ) {
@@ -109,7 +109,14 @@ export function setupInput(): void {
     state.parallaxTargetX = Math.max(-6, Math.min(6, state.parallaxTargetX));
     state.parallaxTargetY = Math.max(-6, Math.min(6, state.parallaxTargetY));
     if (state.gameState === 'PLAYING' && state.turnPhase === 'AIM' && isHumanTurn()) {
-      if (state.mouseX >= 15 && state.mouseX <= 95 && state.mouseY >= 15 && state.mouseY <= 45) {
+      if (state.dragging) {
+        canvas.style.cursor = 'none';
+      } else if (
+        state.mouseX >= 15 &&
+        state.mouseX <= 110 &&
+        state.mouseY >= 15 &&
+        state.mouseY <= 45
+      ) {
         canvas.style.cursor = 'pointer';
       } else {
         canvas.style.cursor = 'crosshair';

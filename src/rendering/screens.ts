@@ -51,19 +51,19 @@ export function drawMenu(t: number): void {
   ctx.globalAlpha = state.neonFlicker;
   ctx.font = 'bold 60px Orbitron';
   ctx.textAlign = 'center';
-  ctx.shadowColor = C.NEON_COLOR;
+  ctx.shadowColor = '#aa44ff';
   ctx.shadowBlur = 50;
-  ctx.fillStyle = C.NEON_COLOR;
-  ctx.fillText('BLIND BREAK', C.W / 2, 160);
+  ctx.fillStyle = '#aa44ff';
+  ctx.fillText('COSMIC BREAK', C.W / 2, 160);
   ctx.shadowBlur = 25;
-  ctx.fillText('BLIND BREAK', C.W / 2, 160);
+  ctx.fillText('COSMIC BREAK', C.W / 2, 160);
   ctx.shadowBlur = 0;
   ctx.restore();
 
   ctx.fillStyle = '#888';
   ctx.font = '18px Rajdhani';
   ctx.textAlign = 'center';
-  ctx.fillText('Billiards in the Dark', C.W / 2, 192);
+  ctx.fillText('Alien Billiards in the Cosmos', C.W / 2, 192);
 
   ctx.strokeStyle = 'rgba(255,51,102,0.15)';
   ctx.lineWidth = 1;
@@ -77,14 +77,14 @@ export function drawMenu(t: number): void {
 
   ctx.font = 'bold 14px Rajdhani';
   ctx.fillStyle = '#00e5ff';
-  ctx.fillText('THE RULES', col1x, 260);
+  ctx.fillText('THE COSMOS', col1x, 260);
   ctx.fillStyle = '#aaa';
   ctx.font = '13px Rajdhani';
   const rules1 = [
-    'The table is always in total darkness',
-    'A small light follows the cue ball',
-    'Shots leave a fading trail',
-    '+1 point per ball pocketed',
+    'The cosmos is shrouded in darkness',
+    'Only the Sun (cue ball) emits light',
+    'Fire energy rays to launch the Sun',
+    '+1 point per planet into a black hole',
   ];
   rules1.forEach((r, i) => ctx.fillText(r, col1x, 282 + i * 20));
 
@@ -94,10 +94,10 @@ export function drawMenu(t: number): void {
   ctx.fillStyle = '#aaa';
   ctx.font = '13px Rajdhani';
   const rules2 = [
-    'Drag from ball — aim & set power',
-    'Farther drag = more power',
-    'Pocket a ball = extra turn',
-    'ESC — pause | T — tutorial',
+    'Drag from Sun — aim & set power',
+    'Energy ray fires in drag direction',
+    'Capture a planet = extra turn',
+    'ESC — pause | T — tutorial | 5s timer',
   ];
   rules2.forEach((r, i) => ctx.fillText(r, col2x, 282 + i * 20));
 
@@ -144,7 +144,7 @@ export function drawMenu(t: number): void {
   ctx.fillStyle = '#555';
   ctx.font = '13px Rajdhani';
   ctx.textAlign = 'center';
-  ctx.fillText('7 Rounds · First to most points wins', C.W / 2, btnY2 + btnH + 24);
+  ctx.fillText('7 Orbits · Most captured planets wins', C.W / 2, btnY2 + btnH + 24);
 
   ctx.fillStyle = 'rgba(200,200,200,0.35)';
   ctx.font = '13px Rajdhani';
@@ -194,35 +194,35 @@ export function drawEndScreen(t: number): void {
   ctx.fillRect(0, 0, C.W, C.H);
 
   const isLocal = state.gameMode === 'VS_LOCAL';
-  const p1Label = isLocal ? 'PLAYER 1' : 'PLAYER';
-  const p2Label = isLocal ? 'PLAYER 2' : 'AI';
+  const p1Label = isLocal ? 'ALIEN 1' : 'ALIEN';
+  const p2Label = isLocal ? 'ALIEN 2' : 'AI';
 
   const diff = state.playerScore - state.aiScore;
   let winner: string;
   let winColor: string;
   if (isLocal) {
     if (diff >= 1) {
-      winner = 'PLAYER 1 WINS!';
+      winner = 'ALIEN 1 WINS!';
       winColor = '#00e5ff';
     } else if (diff <= -1) {
-      winner = 'PLAYER 2 WINS!';
+      winner = 'ALIEN 2 WINS!';
       winColor = '#ff4466';
     } else {
-      winner = 'DEAD EVEN — WELL PLAYED';
+      winner = 'COSMIC TIE — WELL PLAYED';
       winColor = '#ffd700';
     }
   } else {
     if (diff >= 3) {
-      winner = 'YOU WIN — MASTER OF SHADOWS';
+      winner = 'YOU WIN — MASTER OF THE COSMOS';
       winColor = '#00e5ff';
     } else if (diff >= 1) {
-      winner = 'YOU WIN — CLOSE GAME';
+      winner = 'YOU WIN — CLOSE ORBIT';
       winColor = '#00e5ff';
     } else if (diff <= -1) {
-      winner = 'AI WINS — PRACTICE MORE';
+      winner = 'AI WINS — RECALIBRATE';
       winColor = '#ff4466';
     } else {
-      winner = 'DEAD EVEN — WELL PLAYED';
+      winner = 'COSMIC TIE — WELL PLAYED';
       winColor = '#ffd700';
     }
   }
@@ -255,13 +255,13 @@ export function drawEndScreen(t: number): void {
   ctx.font = '15px Rajdhani';
   ctx.textAlign = 'center';
   ctx.fillText(
-    `${p1Label} — Pocketed: ${state.endStats.player.lit}  Scratches: ${state.endStats.player.scratches}`,
+    `${p1Label} — Captured: ${state.endStats.player.lit}  Scratches: ${state.endStats.player.scratches}`,
     C.W / 2,
     320,
   );
   ctx.fillStyle = '#cc8899';
   ctx.fillText(
-    `${p2Label} — Pocketed: ${state.endStats.ai.lit}  Scratches: ${state.endStats.ai.scratches}`,
+    `${p2Label} — Captured: ${state.endStats.ai.lit}  Scratches: ${state.endStats.ai.scratches}`,
     C.W / 2,
     345,
   );
@@ -270,7 +270,11 @@ export function drawEndScreen(t: number): void {
   if (remainingBalls === 0 && state.currentRound <= C.ROUNDS) {
     ctx.fillStyle = '#ffd700';
     ctx.font = '13px Rajdhani';
-    ctx.fillText(`All balls pocketed — early finish in round ${state.currentRound}`, C.W / 2, 368);
+    ctx.fillText(
+      `All planets captured — early finish in orbit ${state.currentRound}`,
+      C.W / 2,
+      368,
+    );
   }
 
   const flash = 0.5 + 0.5 * Math.sin(t * 0.004);
@@ -342,10 +346,10 @@ export function drawTutorial(t: number): void {
   ctx.textAlign = 'center';
 
   const captions = [
-    'Drag from the cue ball to aim and set power.',
-    'The table is always in total darkness.',
-    'A light follows the cue ball. Shots leave a trail.',
-    'Pocket a ball for an extra turn!',
+    'Drag from the Sun to aim the energy ray.',
+    'The cosmos is shrouded in total darkness.',
+    'The Sun illuminates nearby space as it moves.',
+    'Send a planet into a black hole for an extra turn!',
     'Scratch = lose points and your turn.',
   ];
 
@@ -354,22 +358,29 @@ export function drawTutorial(t: number): void {
   if (step === 0) {
     const ax = cx - 60;
     const ay = cy;
-    ctx.fillStyle = '#f5f0e8';
+    // Draw sun
+    const sg = ctx.createRadialGradient(ax, ay, 2, ax, ay, C.BALL_R);
+    sg.addColorStop(0, '#fff8e0');
+    sg.addColorStop(0.5, '#ffdd44');
+    sg.addColorStop(1, '#ff6600');
+    ctx.fillStyle = sg;
     ctx.beginPath();
     ctx.arc(ax, ay, C.BALL_R, 0, Math.PI * 2);
     ctx.fill();
-    ctx.strokeStyle = 'rgba(0,229,255,0.7)';
-    ctx.lineWidth = 2;
-    ctx.setLineDash([8, 5]);
-    ctx.lineDashOffset = -t * 0.05;
+    // Energy ray aim
+    ctx.strokeStyle = 'rgba(80,160,255,0.7)';
+    ctx.lineWidth = 3;
+    ctx.shadowColor = '#4488ff';
+    ctx.shadowBlur = 8;
     const aimLen = 80 + Math.sin(state.tutorialAnim * 2) * 20;
     ctx.beginPath();
     ctx.moveTo(ax, ay);
     ctx.lineTo(ax + aimLen, ay - 20);
     ctx.stroke();
+    ctx.shadowBlur = 0;
     ctx.setLineDash([]);
     const pw = 0.5 + 0.5 * Math.sin(state.tutorialAnim * 1.5);
-    ctx.fillStyle = 'rgba(0,255,68,0.5)';
+    ctx.fillStyle = 'rgba(80,140,255,0.5)';
     ctx.fillRect(cx + 100, cy - 40, 15, 80 * pw);
   } else if (step === 1) {
     const darkR = 120 + 40 * Math.sin(state.tutorialAnim * 1.5);
@@ -380,14 +391,19 @@ export function drawTutorial(t: number): void {
     ctx.fillRect(cx - 200, cy - 120, 400, 240);
   } else if (step === 2) {
     const bx = cx - 100 + (state.tutorialAnim % 4) * 50;
-    ctx.fillStyle = '#f5f0e8';
+    // Sun
+    const sg = ctx.createRadialGradient(bx, cy, 2, bx, cy, C.BALL_R);
+    sg.addColorStop(0, '#fff8e0');
+    sg.addColorStop(0.5, '#ffdd44');
+    sg.addColorStop(1, '#ff6600');
+    ctx.fillStyle = sg;
     ctx.beginPath();
     ctx.arc(bx, cy, C.BALL_R, 0, Math.PI * 2);
     ctx.fill();
     const glowR = 48;
     const glow = ctx.createRadialGradient(bx, cy, 0, bx, cy, glowR);
-    glow.addColorStop(0, 'rgba(255,255,255,0.15)');
-    glow.addColorStop(1, 'rgba(255,255,255,0)');
+    glow.addColorStop(0, 'rgba(255,200,50,0.2)');
+    glow.addColorStop(1, 'rgba(255,200,50,0)');
     ctx.fillStyle = glow;
     ctx.beginPath();
     ctx.arc(bx, cy, glowR, 0, Math.PI * 2);
@@ -400,7 +416,7 @@ export function drawTutorial(t: number): void {
     ctx.fillText('EXTRA TURN!', cx, cy - 10);
     ctx.fillStyle = '#aaa';
     ctx.font = '14px Rajdhani';
-    ctx.fillText('Pocket a ball → shoot again', cx, cy + 14);
+    ctx.fillText('Capture a planet → shoot again', cx, cy + 14);
   } else if (step === 4) {
     ctx.fillStyle = 'rgba(0,0,0,0.3)';
     ctx.fillRect(cx - 80, cy - 40, 160, 60);

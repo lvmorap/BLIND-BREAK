@@ -1,6 +1,12 @@
 import { C } from './core/constants.ts';
 import { state, resetBalls, isHumanTurn } from './core/state.ts';
-import { updatePhysics, allBallsStopped, updateSquash, updateShake } from './core/physics.ts';
+import {
+  updatePhysics,
+  allBallsStopped,
+  updateSquash,
+  updateShake,
+  fireShot,
+} from './core/physics.ts';
 import { updateParticles, updatePopups, spawnDust } from './rendering/effects.ts';
 import { prerenderFelt, prerenderWood } from './rendering/textures.ts';
 import { ctx, lightCanvas, lctx } from './rendering/canvas.ts';
@@ -47,11 +53,26 @@ function update(dt: number): void {
     if (step >= 4) {
       state.gameState = 'PLAYING';
       state.turnPhase = 'AIM';
+      state.turnTimer = 0;
     }
     return;
   }
 
   if (state.gameState !== 'PLAYING') return;
+
+  // Turn timer
+  if (state.turnPhase === 'AIM') {
+    state.turnTimer += dt * 1000;
+    if (state.turnTimer >= C.TURN_TIMER) {
+      // Time's up - auto-fire a random weak shot or skip turn
+      state.turnTimer = 0;
+      const cue = state.balls[0];
+      if (cue && cue.alive && isHumanTurn()) {
+        const angle = Math.random() * Math.PI * 2;
+        fireShot(angle, 0.15);
+      }
+    }
+  }
 
   if (state.dragging && isHumanTurn()) {
     const cue = state.balls[0];
@@ -70,6 +91,7 @@ function update(dt: number): void {
       if (state.settleTimer >= 500) {
         state.settleTimer = 0;
         resolveTurn();
+        state.turnTimer = 0;
       }
     } else {
       state.settleTimer = 0;
@@ -123,6 +145,22 @@ function update(dt: number): void {
   }
 
   if (state.scratchFlashTimer > 0) state.scratchFlashTimer--;
+
+  // Update wall ripples
+  for (let i = state.wallRipples.length - 1; i >= 0; i--) {
+    const r = state.wallRipples[i];
+    if (!r) continue;
+    r.time += dt * 1000;
+    if (r.time >= r.maxTime) state.wallRipples.splice(i, 1);
+  }
+
+  // Update supernova
+  if (state.supernovaActive && state.supernovaTimer > 0) {
+    state.supernovaTimer -= dt * 1000;
+    if (state.supernovaTimer <= 0) {
+      state.supernovaActive = false;
+    }
+  }
 }
 
 function draw(t: number): void {
@@ -131,7 +169,7 @@ function draw(t: number): void {
   ctx.save();
   ctx.translate(state.screenShake.ox, state.screenShake.oy);
 
-  ctx.fillStyle = '#050508';
+  ctx.fillStyle = '#020206';
   ctx.fillRect(-20, -20, C.W + 40, C.H + 40);
 
   if (state.gameState === 'PRELOAD' || state.gameState === 'MENU') {

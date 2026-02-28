@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
+  <defs>
+    <radialGradient id="bhGrad" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#000008"/>
+      <stop offset="50%" stop-color="#100020"/>
+      <stop offset="80%" stop-color="#4020aa" stop-opacity="0.3"/>
+      <stop offset="100%" stop-color="#8040ff" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="accretion" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#000008" stop-opacity="0"/>
+      <stop offset="40%" stop-color="#6030cc" stop-opacity="0.15"/>
+      <stop offset="70%" stop-color="#cc66ff" stop-opacity="0.1"/>
+      <stop offset="100%" stop-color="#cc66ff" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <ellipse cx="32" cy="32" rx="28" ry="16" fill="url(#accretion)"/>
+  <circle cx="32" cy="32" r="16" fill="url(#bhGrad)"/>
+  <circle cx="32" cy="32" r="12" fill="#000008"/>
+  <circle cx="32" cy="32" r="13" fill="none" stroke="#aa44ff" stroke-width="1" opacity="0.5"/>
+</svg>
