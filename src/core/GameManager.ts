@@ -12,8 +12,10 @@ import { RoundIntro } from '../ui/RoundIntro.ts';
 import { EndScreen } from '../ui/EndScreen.ts';
 import { MenuScreen } from '../ui/MenuScreen.ts';
 import type { MenuAction } from '../ui/MenuScreen.ts';
+import { IntroCinematic } from '../ui/IntroCinematic.ts';
 
 export type GameState =
+  | 'INTRO'
   | 'MENU'
   | 'ROUND_INTRO'
   | 'COUNTDOWN'
@@ -28,7 +30,7 @@ interface RoundRecord {
 }
 
 export class GameManager {
-  private state: GameState = 'MENU';
+  private state: GameState = 'INTRO';
   private canvas: HTMLCanvasElement;
   private ctx: CanvasRenderingContext2D;
   private inputManager: InputManager;
@@ -40,6 +42,7 @@ export class GameManager {
   private endScreen: EndScreen | null = null;
   private starfield: StarfieldBackground;
   private transition: ScreenTransition;
+  private introCinematic: IntroCinematic;
 
   private currentGame: IGame | null = null;
   private gameOrder: GameInfo[] = [];
@@ -68,6 +71,7 @@ export class GameManager {
     this.menuScreen = new MenuScreen(registry);
     this.starfield = new StarfieldBackground();
     this.transition = new ScreenTransition();
+    this.introCinematic = new IntroCinematic();
     this.starfield.init();
     this.inputManager.init();
   }
@@ -132,6 +136,7 @@ export class GameManager {
       this.currentRoundIndex + 1,
       this.gameOrder.length,
       this.tweenManager,
+      info.id,
     );
     this.hud.setRound(this.currentRoundIndex + 1, this.gameOrder.length, info.name);
     this.hud.setScores(this.p1Score, this.p2Score);
@@ -202,6 +207,9 @@ export class GameManager {
   update(dt: number): void {
     this.lastDt = dt;
     switch (this.state) {
+      case 'INTRO':
+        this.updateIntro(dt);
+        break;
       case 'MENU':
         this.updateMenu(dt);
         break;
@@ -226,6 +234,13 @@ export class GameManager {
     this.shakeOffset = screenShake.update(dt);
     this.transition.update(dt);
     this.inputManager.update();
+  }
+
+  private updateIntro(dt: number): void {
+    if (this.introCinematic.update(dt)) {
+      this.introCinematic.destroy();
+      this.state = 'MENU';
+    }
   }
 
   private updateMenu(dt: number): void {
@@ -314,6 +329,9 @@ export class GameManager {
     this.starfield.render(ctx, this.lastDt);
 
     switch (this.state) {
+      case 'INTRO':
+        this.introCinematic.render(ctx);
+        break;
       case 'MENU':
         this.menuScreen.render(ctx);
         break;
@@ -408,6 +426,7 @@ export class GameManager {
   destroy(): void {
     this.inputManager.destroy();
     this.currentGame?.destroy();
+    this.introCinematic.destroy();
     this.tweenManager.clear();
     particleSystem.clear();
     screenShake.reset();
