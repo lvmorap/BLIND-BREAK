@@ -445,12 +445,12 @@ function spawnBallTrail(ball) {
 function spawnDust() {
   spawnParticle({
     x: FELT_L + Math.random()*FELT_W,
-    y: FELT_B,
+    y: FELT_T + Math.random()*FELT_H,
     vx: (Math.random()-0.5)*0.3,
-    vy: -0.2 - Math.random()*0.3,
-    life:1, decay:0.005,
-    color:'rgba(255,255,255,0.15)', size:1 + Math.random(),
-    shape:'circle', gravity:-0.005
+    vy: -0.15 - Math.random()*0.2,
+    life:1, decay:0.004,
+    color:'rgba(102,102,85,0.15)', size:1,
+    shape:'circle', gravity:-0.002
   });
 }
 
@@ -572,9 +572,13 @@ function updatePhysics(dt) {
     if (spd > 0.5) {
       b.trail.push({x:b.x, y:b.y, a:0.25});
       if (b.trail.length > 4) b.trail.shift();
-      // Add light zone
+      // Add light zone (sample every ~8px of travel to avoid unbounded growth)
       const r = b.id === 0 ? C.LIGHT_CUE_R : C.LIGHT_OBJ_R;
-      lightZones.push({x:b.x, y:b.y, radius:r, createdAtRound:currentRound, intensity:C.DARKNESS_ALPHA});
+      const lastZ = b._lastLightZone;
+      if (!lastZ || Math.abs(b.x - lastZ.x) + Math.abs(b.y - lastZ.y) > 8) {
+        lightZones.push({x:b.x, y:b.y, radius:r, createdAtRound:currentRound, intensity:C.DARKNESS_ALPHA});
+        b._lastLightZone = {x:b.x, y:b.y};
+      }
     }
 
     // Track last lit position for ghost balls
@@ -707,6 +711,7 @@ function sinkBall(ball, pocket) {
     scratchFlashTimer = 3;
     // Red flash handled in draw
     setTimeout(() => {
+      if (gameState !== 'PLAYING') return; // Guard against state change during timeout
       ball.alive = true;
       ball.sinking = false;
       ball.sinkScale = 1;
@@ -1925,6 +1930,14 @@ function drawEndScreen(t) {
   ctx.fillText(`Player — Blind: ${endStats.player.blind}  Shadow: ${endStats.player.shadow}  Lit: ${endStats.player.lit}  Scratches: ${endStats.player.scratches}`, C.W/2, 320);
   ctx.fillStyle = '#cc8899';
   ctx.fillText(`AI — Blind: ${endStats.ai.blind}  Shadow: ${endStats.ai.shadow}  Lit: ${endStats.ai.lit}  Scratches: ${endStats.ai.scratches}`, C.W/2, 345);
+
+  // Early finish indicator (Section 22 Pass 6)
+  const remainingBalls = balls.filter(b => b.id > 0 && b.alive).length;
+  if (remainingBalls === 0 && currentRound <= C.ROUNDS) {
+    ctx.fillStyle = '#ffd700';
+    ctx.font = '13px Rajdhani';
+    ctx.fillText(`All balls pocketed — early finish in round ${currentRound}`, C.W/2, 368);
+  }
 
   const flash = 0.5 + 0.5 * Math.sin(t * 0.004);
   ctx.fillStyle = `rgba(255,255,255,${flash})`;
