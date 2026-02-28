@@ -69,8 +69,15 @@ export function drawTable(): void {
   ctx.fillStyle = `rgba(20,40,80,${0.4 + pulse * 0.1})`;
   ctx.fillRect(TABLE_L, TABLE_T, C.TABLE_W, C.TABLE_H);
 
-  // Energy field edges
-  ctx.strokeStyle = `rgba(60,120,255,${0.3 + pulse * 0.2})`;
+  // Energy field edges — multi-layered glow
+  ctx.strokeStyle = `rgba(40,80,200,${0.2 + pulse * 0.15})`;
+  ctx.lineWidth = 5;
+  ctx.shadowColor = '#2244aa';
+  ctx.shadowBlur = 20;
+  ctx.strokeRect(TABLE_L + 1, TABLE_T + 1, C.TABLE_W - 2, C.TABLE_H - 2);
+  ctx.shadowBlur = 0;
+
+  ctx.strokeStyle = `rgba(60,120,255,${0.35 + pulse * 0.2})`;
   ctx.lineWidth = 3;
   ctx.shadowColor = '#3366ff';
   ctx.shadowBlur = 15;
@@ -80,6 +87,34 @@ export function drawTable(): void {
   ctx.strokeStyle = `rgba(100,180,255,${0.15 + pulse * 0.1})`;
   ctx.lineWidth = 1;
   ctx.strokeRect(TABLE_L + 6, TABLE_T + 6, C.TABLE_W - 12, C.TABLE_H - 12);
+
+  // Animated energy nodes along the border
+  const nodeCount = 16;
+  for (let i = 0; i < nodeCount; i++) {
+    const frac = i / nodeCount;
+    const perimeter = 2 * (C.TABLE_W + C.TABLE_H);
+    const pos = (frac + t * 0.05) % 1.0;
+    const d = pos * perimeter;
+    let nx: number, ny: number;
+    if (d < C.TABLE_W) {
+      nx = TABLE_L + d;
+      ny = TABLE_T;
+    } else if (d < C.TABLE_W + C.TABLE_H) {
+      nx = TABLE_L + C.TABLE_W;
+      ny = TABLE_T + (d - C.TABLE_W);
+    } else if (d < 2 * C.TABLE_W + C.TABLE_H) {
+      nx = TABLE_L + C.TABLE_W - (d - C.TABLE_W - C.TABLE_H);
+      ny = TABLE_T + C.TABLE_H;
+    } else {
+      nx = TABLE_L;
+      ny = TABLE_T + C.TABLE_H - (d - 2 * C.TABLE_W - C.TABLE_H);
+    }
+    const nodeAlpha = 0.3 + 0.3 * Math.sin(t * 3 + i * 0.9);
+    ctx.fillStyle = `rgba(100,180,255,${nodeAlpha})`;
+    ctx.beginPath();
+    ctx.arc(nx, ny, 2, 0, Math.PI * 2);
+    ctx.fill();
+  }
 
   // Inner felt border glow
   ctx.strokeStyle = `rgba(80,140,255,${0.4 + pulse * 0.15})`;

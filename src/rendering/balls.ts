@@ -1,5 +1,5 @@
 import type { Ball } from '../types/game.ts';
-import { C, CB_SHAPES } from '../core/constants.ts';
+import { C, CB_SHAPES, POCKETS } from '../core/constants.ts';
 import { state } from '../core/state.ts';
 import { getLightLevel } from '../core/physics.ts';
 import { ctx } from './canvas.ts';
@@ -224,9 +224,26 @@ export function drawBall(b: Ball): void {
 
   if (b.id > 0 && b.visAlpha !== undefined && b.visAlpha < 0.02) return;
 
+  // Gravitational distortion near black holes
+  let distortSx = 1;
+  let distortSy = 1;
+  for (const pk of POCKETS) {
+    const dx = b.x - pk.x;
+    const dy = b.y - pk.y;
+    const dist = Math.sqrt(dx * dx + dy * dy);
+    const influenceR = pk.r + 50;
+    if (dist < influenceR && dist > 0) {
+      const strength = (1 - dist / influenceR) * 0.2;
+      const angle = Math.atan2(dy, dx);
+      // Stretch toward the black hole
+      distortSx += Math.abs(Math.cos(angle)) * strength;
+      distortSy += Math.abs(Math.sin(angle)) * strength;
+    }
+  }
+
   ctx.save();
   ctx.translate(b.x, b.y);
-  ctx.scale(b.squash.sx * scale, b.squash.sy * scale);
+  ctx.scale(b.squash.sx * scale * distortSx, b.squash.sy * scale * distortSy);
 
   if (b.trail.length > 0) {
     const alphas = [0.05, 0.12, 0.25];
