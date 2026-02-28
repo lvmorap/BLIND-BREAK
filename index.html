@@ -184,7 +184,8 @@ function resetBalls() {
     id:0, x:baulkX, y:FELT_CY, vx:0, vy:0,
     color:BALL_COLORS[0], num:'', alive:true,
     sinking:false, sinkTimer:0, sinkScale:1,
-    trail:[], squash:{sx:1,sy:1,timer:0}
+    trail:[], squash:{sx:1,sy:1,timer:0},
+    _lastLightZone: null
   });
   // Rack 7 balls in triangle at 3/4 table
   const rackX = FELT_L + FELT_W * 0.72;
@@ -205,7 +206,7 @@ function resetBalls() {
       lastLitX: bx, lastLitY: by,
       alive:true, sinking:false, sinkTimer:0, sinkScale:1,
       trail:[], squash:{sx:1,sy:1,timer:0},
-      visAlpha: 1.0
+      visAlpha: 1.0, _lastLightZone: null
     });
   }
 }
@@ -711,7 +712,7 @@ function sinkBall(ball, pocket) {
     scratchFlashTimer = 3;
     // Red flash handled in draw
     setTimeout(() => {
-      if (gameState !== 'PLAYING') return; // Guard against state change during timeout
+      if (gameState !== 'PLAYING' || ball.alive) return; // Guard against state changes
       ball.alive = true;
       ball.sinking = false;
       ball.sinkScale = 1;
