@@ -16,7 +16,7 @@ canvas{display:block;image-rendering:auto}
 </head>
 <body>
 <canvas id="gameCanvas" width="960" height="600"></canvas>
-<div id="colorblindIndicator" class="hidden">♿ COLOR-BLIND MODE</div>
+<div id="colorblindIndicator" class="hidden">👁 COLOR-BLIND MODE</div>
 <script>
 (function(){"use strict";
 
@@ -1265,8 +1265,8 @@ function aiThink() {
     if (ll > 0.3) {
       strategy = 'HUNT_LIT';
       for (const pk of POCKETS) {
-        const distToPocket = Math.sqrt((b.x-pk.x)**2+(b.y-pk.y)**2);
-        const score = ll * 100 - distToPocket;
+        const distSq = (b.x-pk.x)**2+(b.y-pk.y)**2;
+        const score = ll * 10000 - distSq;
         if (score > bestScore) { bestScore = score; bestBall = b; }
       }
     }
@@ -1289,8 +1289,8 @@ function aiThink() {
 
   if (bestBall) {
     const angle = Math.atan2(bestBall.y - cue.y, bestBall.x - cue.x);
-    const dist = Math.sqrt((bestBall.x-cue.x)**2+(bestBall.y-cue.y)**2);
-    const power = Math.min(0.7, Math.max(0.2, dist / 400));
+    const distSq = (bestBall.x-cue.x)**2+(bestBall.y-cue.y)**2;
+    const power = Math.min(0.7, Math.max(0.2, Math.sqrt(distSq) / 400));
     fireShot(angle, power);
     aiState = 'IDLE';
     return;
