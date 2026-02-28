@@ -160,6 +160,12 @@ let audioInited = false;
 let ambientNode = null;
 let ambientGain = null;
 let collisionSoundCount = 0;
+let parallaxX = 0, parallaxY = 0;
+let parallaxTargetX = 0, parallaxTargetY = 0;
+let chromaticTimer = 0;
+let breathTimer = 0;
+let numberBouncePopups = [];
+let scratchFlashTimer = 0;
 
 // ===== BALL DATA =====
 let balls = [];
@@ -235,6 +241,9 @@ function resetGame() {
   squashEffects = [];
   timeScale = 1.0;
   slowMoTimer = 0;
+  chromaticTimer = 0;
+  numberBouncePopups = [];
+  scratchFlashTimer = 0;
 }
 
 // ===== PRE-RENDER TEXTURES =====
@@ -251,6 +260,25 @@ function prerenderFelt() {
     fctx.arc(x, y, 0.5, 0, Math.PI*2);
     fctx.fill();
   }
+  // Fiber lines (Section 18F)
+  for (let i = 0; i < 200; i++) {
+    const fx = Math.random() * C.TABLE_W;
+    const fy = Math.random() * C.TABLE_H;
+    const angle = Math.random() * Math.PI * 2;
+    const len = 2 + Math.random() * 2;
+    fctx.strokeStyle = 'rgba(42,64,48,0.02)';
+    fctx.lineWidth = 0.5;
+    fctx.beginPath();
+    fctx.moveTo(fx, fy);
+    fctx.lineTo(fx + Math.cos(angle) * len, fy + Math.sin(angle) * len);
+    fctx.stroke();
+  }
+  // Vignette (Section 20B)
+  const vg = fctx.createRadialGradient(C.TABLE_W/2, C.TABLE_H/2, C.TABLE_W*0.25, C.TABLE_W/2, C.TABLE_H/2, C.TABLE_W*0.6);
+  vg.addColorStop(0, 'rgba(0,0,0,0)');
+  vg.addColorStop(1, 'rgba(0,0,0,0.12)');
+  fctx.fillStyle = vg;
+  fctx.fillRect(0, 0, C.TABLE_W, C.TABLE_H);
 }
 
 function prerenderWood() {
@@ -596,12 +624,16 @@ function updatePhysics(dt) {
     spawnBallTrail(b);
     updateSquash(b, realDt);
 
-    // Smooth visibility fade for object balls
+    // Smooth visibility fade for object balls (Section 22: 200ms in, 400ms out)
     if (b.id > 0) {
       const targetAlpha = getLightLevel(b.x, b.y) > 0.1 ? 1.0 : 0.0;
-      const fadeSpeed = targetAlpha > b.visAlpha ? 0.08 : 0.04; // fade in faster than fade out
-      b.visAlpha += (targetAlpha - b.visAlpha) * fadeSpeed * dt * 60;
-      b.visAlpha = Math.max(0, Math.min(1, b.visAlpha));
+      const fadeInRate = dt / 0.2;   // 200ms fade in
+      const fadeOutRate = dt / 0.4;  // 400ms fade out
+      if (targetAlpha > b.visAlpha) {
+        b.visAlpha = Math.min(1, b.visAlpha + fadeInRate);
+      } else {
+        b.visAlpha = Math.max(0, b.visAlpha - fadeOutRate);
+      }
     }
   }
 
@@ -636,6 +668,7 @@ function updatePhysics(dt) {
           triggerSquash(b);
           const impactSpd = Math.abs(dvn);
           if (impactSpd > 8) triggerShake(3, 80);
+          if (impactSpd > 12) chromaticTimer = 3;
         }
       }
     }
@@ -671,6 +704,7 @@ function sinkBall(ball, pocket) {
     endStats[who].scratches++;
     addScorePopup(pocket.x, pocket.y, '-1 SCRATCH', '#ff0000', 28);
     triggerShake(8, 250);
+    scratchFlashTimer = 3;
     // Red flash handled in draw
     setTimeout(() => {
       ball.alive = true;
@@ -709,8 +743,18 @@ function sinkBall(ball, pocket) {
   addScorePopup(pocket.x, pocket.y, label, color, size);
   spawnPocketBurst(pocket.x, pocket.y, ball.color, 12);
 
-  // Ghost ball at last known position
-  ghostBalls.push({id:ball.id, x:ball.x, y:ball.y, color:ball.color, round:currentRound});
+  // Ball number bounce popup (Section 18G)
+  if (ball.num) {
+    numberBouncePopups.push({
+      num: ball.num, x: pocket.x, y: pocket.y,
+      vy: -4.5, scale: 2.0, alpha: 1.0, color: ball.color, timer: 60
+    });
+  }
+
+  // Ghost ball at last known lit position (Section 22)
+  const gx = (ball.lastLitX !== undefined && ball.lastLitX !== 0) ? ball.lastLitX : ball.x;
+  const gy = (ball.lastLitY !== undefined && ball.lastLitY !== 0) ? ball.lastLitY : ball.y;
+  ghostBalls.push({id:ball.id, x:gx, y:gy, color:ball.color, round:currentRound});
 }
 
 function unstickBall(ball) {
@@ -804,8 +848,18 @@ function drawWallSconces() {
 }
 
 function drawTable() {
-  // Wood rails
+  // 3-layer rail depth (Section 17)
+  // Back face (darkest) - offset +6px
+  ctx.fillStyle = '#1a0a04';
+  ctx.fillRect(TABLE_L + 6, TABLE_T + 6, C.TABLE_W, C.TABLE_H);
+  // Middle bevel - offset +3px
+  ctx.fillStyle = '#2d1208';
+  ctx.fillRect(TABLE_L + 3, TABLE_T + 3, C.TABLE_W, C.TABLE_H);
+  // Front face (lightest) - wood texture
   ctx.drawImage(woodCanvas, TABLE_L, TABLE_T);
+  // Shadow band at bottom (4px)
+  ctx.fillStyle = 'rgba(0,0,0,0.3)';
+  ctx.fillRect(TABLE_L, TABLE_T + C.TABLE_H - 4, C.TABLE_W, 4);
 
   // Brass highlight inner edge
   ctx.strokeStyle = '#c8a040';
@@ -854,6 +908,8 @@ function drawTable() {
 }
 
 function drawLamps() {
+  // Lamp breathing (Section 21D) ±8% brightness, period 4.2s
+  const lampBreath = 1.0 + 0.08 * Math.sin(breathTimer * 2 * Math.PI / 4.2);
   for (const lamp of LAMP_ZONES) {
     // Pendant lamp fixture
     ctx.fillStyle = '#222';
@@ -867,14 +923,14 @@ function drawLamps() {
     ctx.closePath();
     ctx.fill();
 
-    // Light cone
+    // Light cone with breathing
     ctx.save();
-    ctx.globalAlpha = 0.06;
+    ctx.globalAlpha = 0.06 * lampBreath;
     ctx.fillStyle = '#ffeecc';
     ctx.beginPath();
     ctx.ellipse(lamp.x, lamp.y, lamp.rx, lamp.ry, 0, 0, Math.PI*2);
     ctx.fill();
-    ctx.globalAlpha = 0.04;
+    ctx.globalAlpha = 0.04 * lampBreath;
     ctx.beginPath();
     ctx.ellipse(lamp.x, lamp.y, lamp.rx*1.3, lamp.ry*1.3, 0, 0, Math.PI*2);
     ctx.fill();
@@ -882,7 +938,7 @@ function drawLamps() {
 
     // Bulb glow
     const bg = ctx.createRadialGradient(lamp.x, TABLE_T + 5, 2, lamp.x, TABLE_T + 5, 20);
-    bg.addColorStop(0, 'rgba(255,238,180,0.5)');
+    bg.addColorStop(0, `rgba(255,238,180,${0.5 * lampBreath})`);
     bg.addColorStop(1, 'rgba(255,238,180,0)');
     ctx.fillStyle = bg;
     ctx.fillRect(lamp.x - 20, TABLE_T - 15, 40, 40);
@@ -959,11 +1015,17 @@ function drawBall(b) {
     ctx.globalAlpha = 1;
   }
 
-  // Ground shadow
+  // Ground shadow (speed-dependent, Section 17)
+  const spd = Math.sqrt(b.vx*b.vx + b.vy*b.vy);
+  const shadowScale = 1.0 + Math.min(spd * 0.01, 0.15);
+  const shadowBlur = Math.min(spd * 0.3, 4);
+  ctx.save();
+  ctx.filter = shadowBlur > 0.5 ? `blur(${shadowBlur}px)` : 'none';
   ctx.fillStyle = 'rgba(0,0,0,0.3)';
   ctx.beginPath();
-  ctx.ellipse(2, C.BALL_R + 3, C.BALL_R * 0.8, C.BALL_R * 0.3, 0, 0, Math.PI*2);
+  ctx.ellipse(3, C.BALL_R * 0.85, C.BALL_R * 1.1 * shadowScale, C.BALL_R * 0.3 * shadowScale, 0, 0, Math.PI*2);
   ctx.fill();
+  ctx.restore();
 
   // Ball body
   // Glow when illuminated (Issue 6)
@@ -1228,6 +1290,7 @@ function drawPowerBar() {
   if (!charging && !dragging) return;
 
   const bx = 20, by = C.H/2 - 100, bw = 30, bh = 200;
+  const now = performance.now();
 
   // Background
   ctx.fillStyle = 'rgba(0,0,0,0.5)';
@@ -1236,14 +1299,33 @@ function drawPowerBar() {
   ctx.fillRect(bx, by, bw, bh);
   ctx.strokeRect(bx, by, bw, bh);
 
-  // Fill
+  // Fill with sine pulse (Section 18H)
   const fillH = bh * power;
+  const pulse = 0.85 + 0.15 * Math.sin(now * 0.008);
   const grd = ctx.createLinearGradient(0, by + bh, 0, by);
   grd.addColorStop(0, '#00ff44');
   grd.addColorStop(0.5, '#ffdd00');
   grd.addColorStop(1, '#ff2200');
+  ctx.globalAlpha = pulse;
   ctx.fillStyle = grd;
   ctx.fillRect(bx + 2, by + bh - fillH, bw - 4, fillH);
+  ctx.globalAlpha = 1;
+
+  // 100% power white glow overflow
+  if (power >= 0.99) {
+    ctx.save();
+    ctx.shadowColor = '#ffffff';
+    ctx.shadowBlur = 15 + 5 * Math.sin(now * 0.01);
+    ctx.fillStyle = 'rgba(255,255,255,0.15)';
+    ctx.fillRect(bx, by, bw, bh);
+    ctx.restore();
+  }
+
+  // Power percentage above bar
+  ctx.fillStyle = '#fff';
+  ctx.font = 'bold 13px Rajdhani';
+  ctx.textAlign = 'center';
+  ctx.fillText(Math.round(power * 100) + '%', bx + bw/2, by - 6);
 
   // Label
   ctx.fillStyle = '#fff';
@@ -2015,15 +2097,45 @@ function drawTutorial(t) {
 }
 
 // ===== MAIN SCENE DRAWING =====
+function drawNumberBouncePopups() {
+  for (const nb of numberBouncePopups) {
+    ctx.save();
+    ctx.globalAlpha = nb.alpha;
+    ctx.font = `bold ${Math.round(28 * nb.scale)}px Orbitron`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.shadowColor = nb.color;
+    ctx.shadowBlur = 12;
+    ctx.fillStyle = nb.color;
+    ctx.fillText(nb.num, nb.x, nb.y);
+    ctx.shadowBlur = 0;
+    ctx.restore();
+  }
+}
+
 function drawScene(t) {
+  // Parallax Layer 1: background offset (Section 21C)
+  ctx.save();
+  ctx.translate(parallaxX, parallaxY);
   drawBrickWall();
   drawWallSconces();
+  ctx.restore();
+
+  // Parallax Layer 2: table/rails offset (Section 21C)
+  const tableParX = (parallaxTargetX) * 0.375; // 0.003/0.008 ratio
+  const tableParY = (parallaxTargetY) * 0.375;
+  ctx.save();
+  ctx.translate(tableParX, tableParY);
   drawTable();
   drawLamps();
+  ctx.restore();
+
+  // Layer 3: balls/HUD - no parallax offset
   drawBalls();
   if (gameState === 'PLAYING') drawDarkness();
   drawGhostBalls();
   drawParticles();
+  drawNumberBouncePopups();
   drawNeonSign(t);
   drawAimLine();
   drawChargingEffects(t);
@@ -2036,6 +2148,14 @@ function drawScene(t) {
   drawRoundTransition();
   drawFirstShotCoach(t);
   drawScoringReminder(t);
+
+  // Scene vignette breathing (Section 21D)
+  const vigAlpha = 0.15 + 0.03 * Math.sin(breathTimer * 2 * Math.PI / 6.5);
+  const vig = ctx.createRadialGradient(C.W/2, C.H/2, C.W*0.25, C.W/2, C.H/2, C.W*0.6);
+  vig.addColorStop(0, 'rgba(0,0,0,0)');
+  vig.addColorStop(1, `rgba(0,0,0,${vigAlpha})`);
+  ctx.fillStyle = vig;
+  ctx.fillRect(0, 0, C.W, C.H);
 }
 
 function drawRoundTransition() {
@@ -2206,6 +2326,11 @@ canvas.addEventListener('mousemove', (e) => {
   const scaleY = C.H / rect.height;
   mouseX = (e.clientX - rect.left) * scaleX;
   mouseY = (e.clientY - rect.top) * scaleY;
+  // Parallax target (Section 21C)
+  parallaxTargetX = (mouseX - C.W/2) * 0.008;
+  parallaxTargetY = (mouseY - C.H/2) * 0.008;
+  parallaxTargetX = Math.max(-6, Math.min(6, parallaxTargetX));
+  parallaxTargetY = Math.max(-6, Math.min(6, parallaxTargetY));
   // Dynamic cursor
   if (gameState === 'PLAYING' && turnPhase === 'AIM' && currentTurn === 'PLAYER') {
     if (mouseX >= 15 && mouseX <= 95 && mouseY >= 15 && mouseY <= 45) {
@@ -2394,6 +2519,30 @@ function update(dt) {
 
   // First shot coach disable after first drag
   if (firstShotCoach && dragging) { firstShotCoach = false; }
+
+  // Parallax lerp (Section 21C)
+  parallaxX += (parallaxTargetX - parallaxX) * 0.05;
+  parallaxY += (parallaxTargetY - parallaxY) * 0.05;
+
+  // Breath timer (Section 21D)
+  breathTimer += dt;
+
+  // Chromatic aberration countdown (Section 18F)
+  if (chromaticTimer > 0) chromaticTimer--;
+
+  // Number bounce popups (Section 18G)
+  for (let i = numberBouncePopups.length - 1; i >= 0; i--) {
+    const nb = numberBouncePopups[i];
+    nb.y += nb.vy;
+    nb.vy += 0.12; // gravity
+    nb.timer--;
+    nb.alpha = Math.max(0, nb.timer / 60);
+    nb.scale *= 0.985;
+    if (nb.timer <= 0) numberBouncePopups.splice(i, 1);
+  }
+
+  // Scratch flash timer
+  if (scratchFlashTimer > 0) scratchFlashTimer--;
 }
 
 function draw(t) {
@@ -2415,6 +2564,18 @@ function draw(t) {
     drawCountdown(t);
   } else if (gameState === 'PLAYING') {
     drawScene(t);
+    // Chromatic aberration (Section 18F)
+    if (chromaticTimer > 0) {
+      const offset = chromaticTimer * 1.5;
+      ctx.save();
+      ctx.globalCompositeOperation = 'lighter';
+      ctx.globalAlpha = 0.08;
+      // Red channel shift
+      ctx.drawImage(canvas, offset, 0);
+      // Blue channel shift
+      ctx.drawImage(canvas, -offset, 0);
+      ctx.restore();
+    }
     if (paused) drawPauseMenu();
   } else if (gameState === 'ENDSCREEN') {
     drawEndScreen(t);
