@@ -33,9 +33,9 @@ export function setupInput(): void {
         return;
       }
       const btnW = 200;
-      const btnH = 36;
+      const btnH = 40;
       const btnGap = 16;
-      const btnY1 = 400;
+      const btnY1 = 395;
       const btnY2 = btnY1 + btnH + btnGap;
       const btnX = C.W / 2 - btnW / 2;
       const inBtn1 =
@@ -145,6 +145,16 @@ export function setupInput(): void {
         if (state.reconMode) {
           fireRecon(angle);
         } else {
+          // Trigger laser beam visual
+          const beamLen = 300 + state.power * 200;
+          state.laserBeam = {
+            sx: cue.x,
+            sy: cue.y,
+            ex: cue.x - Math.cos(angle) * beamLen,
+            ey: cue.y - Math.sin(angle) * beamLen,
+            timer: 400,
+            maxTimer: 400,
+          };
           fireShot(angle, state.power);
         }
       }

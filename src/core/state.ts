@@ -95,6 +95,23 @@ export const state = {
   supernovaActive: false,
   supernovaTimer: 0,
   wallRipples: [] as Array<{ x: number; y: number; time: number; maxTime: number }>,
+  laserBeam: null as {
+    sx: number;
+    sy: number;
+    ex: number;
+    ey: number;
+    timer: number;
+    maxTimer: number;
+  } | null,
+  comets: [] as Array<{
+    x: number;
+    y: number;
+    vx: number;
+    vy: number;
+    size: number;
+    alpha: number;
+    tailLen: number;
+  }>,
 
   balls: [] as Ball[],
   lightZones: [] as LightZone[],
@@ -204,6 +221,8 @@ export function resetGame(): void {
   state.supernovaActive = false;
   state.supernovaTimer = 0;
   state.wallRipples = [];
+  state.laserBeam = null;
+  state.comets = [];
 }
 
 export function getCueBall(): Ball {

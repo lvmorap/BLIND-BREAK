@@ -98,20 +98,47 @@ export function drawTable(): void {
   ctx.fillStyle = fpg;
   ctx.fillRect(FELT_L, FELT_T, FELT_W, FELT_H);
 
-  // Wall ripple effects
+  // Wall ripple effects — enhanced energy field waves
   for (const ripple of state.wallRipples) {
     const age = ripple.time / ripple.maxTime;
     if (age >= 1) continue;
-    const alpha = 0.6 * (1 - age);
-    const radius = 5 + age * 40;
+    const alpha = 0.7 * (1 - age);
+
+    // Primary wave
+    const radius = 5 + age * 50;
     const rg = ctx.createRadialGradient(ripple.x, ripple.y, 0, ripple.x, ripple.y, radius);
-    rg.addColorStop(0, `rgba(80,140,255,${alpha})`);
-    rg.addColorStop(0.5, `rgba(60,100,255,${alpha * 0.5})`);
+    rg.addColorStop(0, `rgba(80,160,255,${alpha})`);
+    rg.addColorStop(0.4, `rgba(60,120,255,${alpha * 0.5})`);
+    rg.addColorStop(0.7, `rgba(100,60,255,${alpha * 0.3})`);
     rg.addColorStop(1, 'rgba(60,100,255,0)');
     ctx.fillStyle = rg;
     ctx.beginPath();
     ctx.arc(ripple.x, ripple.y, radius, 0, Math.PI * 2);
     ctx.fill();
+
+    // Secondary wave (echo)
+    if (age > 0.15) {
+      const echoAge = age - 0.15;
+      const echoR = 5 + echoAge * 40;
+      const echoAlpha = 0.3 * (1 - echoAge / 0.85);
+      const eg = ctx.createRadialGradient(ripple.x, ripple.y, 0, ripple.x, ripple.y, echoR);
+      eg.addColorStop(0, `rgba(120,80,255,${echoAlpha})`);
+      eg.addColorStop(0.5, `rgba(80,60,200,${echoAlpha * 0.4})`);
+      eg.addColorStop(1, 'rgba(60,40,180,0)');
+      ctx.fillStyle = eg;
+      ctx.beginPath();
+      ctx.arc(ripple.x, ripple.y, echoR, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    // Bright flash at impact point
+    if (age < 0.15) {
+      const flashAlpha = (1 - age / 0.15) * 0.6;
+      ctx.fillStyle = `rgba(200,220,255,${flashAlpha})`;
+      ctx.beginPath();
+      ctx.arc(ripple.x, ripple.y, 4, 0, Math.PI * 2);
+      ctx.fill();
+    }
   }
 
   // Black hole pockets
@@ -142,7 +169,15 @@ export function drawTable(): void {
       ctx.strokeStyle = `rgba(${130 - ring * 15},${70 + ring * 10},${210 - ring * 10},${ringAlpha})`;
       ctx.lineWidth = 1.2 - ring * 0.15;
       ctx.beginPath();
-      ctx.ellipse(pk.x + wobble, pk.y + wobble * 0.5, ringR, ringR * (0.85 + ring * 0.03), slowSpin * 0.2 + ring * 0.4, 0, Math.PI * 2);
+      ctx.ellipse(
+        pk.x + wobble,
+        pk.y + wobble * 0.5,
+        ringR,
+        ringR * (0.85 + ring * 0.03),
+        slowSpin * 0.2 + ring * 0.4,
+        0,
+        Math.PI * 2,
+      );
       ctx.stroke();
     }
 
