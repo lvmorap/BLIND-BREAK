@@ -483,67 +483,6 @@ export class GameManager {
     }
   }
 
-  private renderAISelect(ctx: CanvasRenderingContext2D): void {
-    const w = ctx.canvas.width;
-    const h = ctx.canvas.height;
-
-    ctx.fillStyle = 'rgba(5, 5, 8, 0.92)';
-    ctx.fillRect(0, 0, w, h);
-
-    ctx.textAlign = 'center';
-
-    // Title
-    ctx.font = '700 36px Orbitron, sans-serif';
-    ctx.fillStyle = '#ffffff';
-    ctx.fillText('SELECT MODE', w / 2, h / 2 - 100);
-
-    // VS AI option
-    ctx.save();
-    ctx.shadowColor = COLORS.NEXARI_CYAN;
-    ctx.shadowBlur = 15;
-    ctx.strokeStyle = COLORS.NEXARI_CYAN;
-    ctx.lineWidth = 2;
-    ctx.beginPath();
-    ctx.roundRect(w / 2 - 150, h / 2 - 55, 300, 50, 8);
-    ctx.stroke();
-    ctx.fillStyle = 'rgba(0, 229, 255, 0.1)';
-    ctx.fill();
-    ctx.shadowBlur = 0;
-    ctx.restore();
-
-    ctx.font = '700 22px Orbitron, sans-serif';
-    ctx.fillStyle = COLORS.NEXARI_CYAN;
-    ctx.fillText('🧑 VS 👾  AI MODE', w / 2, h / 2 - 23);
-
-    // VS LOCAL option
-    ctx.save();
-    ctx.strokeStyle = '#ff4466';
-    ctx.lineWidth = 2;
-    ctx.beginPath();
-    ctx.roundRect(w / 2 - 150, h / 2 + 15, 300, 50, 8);
-    ctx.stroke();
-    ctx.fillStyle = 'rgba(255, 68, 102, 0.1)';
-    ctx.fill();
-    ctx.restore();
-
-    ctx.font = '700 22px Orbitron, sans-serif';
-    ctx.fillStyle = '#ff4466';
-    ctx.fillText('🧑 VS 🧑  2 PLAYERS', w / 2, h / 2 + 47);
-
-    // Instructions
-    ctx.font = '400 16px Rajdhani, sans-serif';
-    ctx.fillStyle = '#888888';
-    ctx.fillText('F / RShift = VS AI  |  G / Enter = 2 Players', w / 2, h / 2 + 100);
-
-    // Blink
-    const blink = Math.sin(this.aiSelectTimer * 4) > 0;
-    if (blink) {
-      ctx.font = '500 14px Rajdhani, sans-serif';
-      ctx.fillStyle = '#666666';
-      ctx.fillText('Choose your battle mode', w / 2, h / 2 + 125);
-    }
-  }
-
   private renderCountdown(ctx: CanvasRenderingContext2D): void {
     const w = ctx.canvas.width;
     const h = ctx.canvas.height;
