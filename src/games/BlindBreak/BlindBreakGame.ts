@@ -25,9 +25,14 @@ import type { IGame } from '../IGame.ts';
 
 export class BlindBreakGame implements IGame {
   private durationMult = 1;
+  private aiEnabled = false;
 
   setDurationMultiplier(mult: number): void {
     this.durationMult = mult;
+  }
+
+  setAIMode(enabled: boolean): void {
+    this.aiEnabled = enabled;
   }
 
   init(_canvas: HTMLCanvasElement, _ctx: CanvasRenderingContext2D): void {
@@ -38,7 +43,7 @@ export class BlindBreakGame implements IGame {
     setupInput();
     state.maxRounds = Math.max(1, Math.ceil(C.ROUNDS * this.durationMult));
     state.tutorialSeen = true;
-    state.gameMode = 'VS_LOCAL';
+    state.gameMode = this.aiEnabled ? 'VS_AI' : 'VS_LOCAL';
     state.gameState = 'COUNTDOWN';
     state.countdownVal = 3;
     state.countdownTimer = 0;

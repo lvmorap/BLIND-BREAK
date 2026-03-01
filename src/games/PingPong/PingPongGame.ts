@@ -64,6 +64,7 @@ function clamp(v: number, min: number, max: number): number {
 export class PingPongGame implements IGame {
   private input: InputManager = new InputManager();
   private durationMult = 1;
+  private aiEnabled = false;
 
   // Paddles (x,y = top-left corner)
   private p1: Paddle = { x: 0, y: 0, w: PADDLE_W, h: PADDLE_H };
@@ -92,6 +93,10 @@ export class PingPongGame implements IGame {
   // ── IGame lifecycle ────────────────────────────────────────────────────
   setDurationMultiplier(mult: number): void {
     this.durationMult = mult;
+  }
+
+  setAIMode(enabled: boolean): void {
+    this.aiEnabled = enabled;
   }
 
   init(_canvas: HTMLCanvasElement, _ctx: CanvasRenderingContext2D): void {
@@ -144,6 +149,14 @@ export class PingPongGame implements IGame {
     // ── Paddle movement (vertical + horizontal) ──────────────────────────
     const p1In = this.input.getPlayer1();
     const p2In = this.input.getPlayer2();
+
+    // AI override for player 2
+    if (this.aiEnabled) {
+      const paddleCenterY = this.p2.y + PADDLE_H / 2;
+      const ballOnRightHalf = this.ball.x > W / 2;
+      p2In.up = ballOnRightHalf && this.ball.y < paddleCenterY;
+      p2In.down = ballOnRightHalf && this.ball.y > paddleCenterY;
+    }
 
     if (p1In.up) this.p1.y -= PADDLE_SPEED * dt;
     if (p1In.down) this.p1.y += PADDLE_SPEED * dt;
@@ -287,7 +300,7 @@ export class PingPongGame implements IGame {
       ctx.textBaseline = 'middle';
 
       const winner = this.getWinner();
-      const msg = winner === 1 ? 'PLAYER 1 WINS!' : winner === 2 ? 'PLAYER 2 WINS!' : 'DRAW!';
+      const msg = winner === 1 ? 'HUMAN WINS!' : winner === 2 ? 'ALIEN WINS!' : 'DRAW!';
       ctx.fillText(msg, W / 2, H / 2);
     }
   }

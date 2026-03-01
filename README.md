@@ -1,6 +1,6 @@
-# BLIND BREAK
+# NEXARI
 
-**Billiards in the Dark — EA Game Jam 2025**
+**6 Game Tournament — EA Game Jam 2025**
 _Theme: "Reinventing Competition"_
 
 ---

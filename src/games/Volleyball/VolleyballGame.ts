@@ -12,22 +12,22 @@ const COURT_X = (CANVAS_W - COURT_W) / 2;
 const COURT_Y = (CANVAS_H - COURT_H) / 2;
 
 const NET_W = 4;
-const NET_HEIGHT_RATIO = 0.65;
+const NET_HEIGHT_RATIO = 0.45;
 const NET_X = COURT_X + COURT_W / 2 - NET_W / 2;
 
-const PLAYER_W = 24;
-const PLAYER_H = 36;
-const PLAYER_SPEED = 300;
-const JUMP_VELOCITY = 500;
+const PLAYER_W = 32;
+const PLAYER_H = 48;
+const PLAYER_SPEED = 250;
+const JUMP_VELOCITY = 450;
 
 const BALL_RADIUS = 12;
 const BALL_RESTITUTION = 0.7;
 const BALL_FRICTION = 0.998;
 const HIT_RANGE = 50;
-const HIT_FORCE = 700;
+const HIT_FORCE = 600;
 const HIT_COOLDOWN = 0.3;
 
-const GRAVITY_STRENGTH = 900;
+const GRAVITY_STRENGTH = 700;
 const GRAVITY_INTERVAL = 5;
 const GRAVITY_WARNING_TIME = 1;
 
@@ -137,8 +137,13 @@ export class VolleyballGame implements IGame {
   private cosmicParticles: CosmicParticle[] = [];
 
   private freezeTimer = 0;
+  private aiEnabled = false;
 
   // ── IGame lifecycle ────────────────────────────────────────────────────────
+
+  setAIMode(enabled: boolean): void {
+    this.aiEnabled = enabled;
+  }
 
   setDurationMultiplier(mult: number): void {
     this.durationMult = mult;
@@ -204,7 +209,11 @@ export class VolleyballGame implements IGame {
 
     // Input
     const p1In = this.input.getPlayer1();
-    const p2In = this.input.getPlayer2();
+    let p2In = this.input.getPlayer2();
+
+    if (this.aiEnabled) {
+      p2In = this.computeAIInput(this.p2);
+    }
 
     this.handlePlayerInput(this.p1, p1In, dt);
     this.handlePlayerInput(this.p2, p2In, dt);
@@ -355,6 +364,45 @@ export class VolleyballGame implements IGame {
     if (inp.action1 && player.hitCooldown <= 0) {
       this.tryHit(player);
     }
+  }
+
+  private computeAIInput(player: Player): PlayerInput {
+    const inp: PlayerInput = {
+      up: false,
+      down: false,
+      left: false,
+      right: false,
+      action1: false,
+      action2: false,
+    };
+    const pcx = player.x + PLAYER_W / 2;
+    const pcy = player.y + PLAYER_H / 2;
+    const isVertical = this.gravity === 'DOWN' || this.gravity === 'UP';
+    const trackThreshold = 10;
+
+    if (isVertical) {
+      // Move left/right to track ball X
+      if (this.ball.x < pcx - trackThreshold) inp.left = true;
+      else if (this.ball.x > pcx + trackThreshold) inp.right = true;
+
+      // Jump when ball is above (DOWN gravity) or below (UP gravity)
+      const verticalDist = this.gravity === 'DOWN' ? pcy - this.ball.y : this.ball.y - pcy;
+      if (verticalDist > PLAYER_H * 1.5) inp.action2 = true;
+    } else {
+      // Move up/down to track ball Y
+      if (this.ball.y < pcy - trackThreshold) inp.up = true;
+      else if (this.ball.y > pcy + trackThreshold) inp.down = true;
+
+      // Jump when ball is beside player (LEFT: ball to right; RIGHT: ball to left)
+      if (this.gravity === 'LEFT' && this.ball.x > pcx + PLAYER_W * 1.5) inp.action2 = true;
+      else if (this.gravity === 'RIGHT' && this.ball.x < pcx - PLAYER_W * 1.5) inp.action2 = true;
+    }
+
+    // Hit when close to ball
+    const d = dist({ x: pcx, y: pcy }, { x: this.ball.x, y: this.ball.y });
+    if (d < HIT_RANGE * 1.5) inp.action1 = true;
+
+    return inp;
   }
 
   private isPlayerOnFloor(player: Player): boolean {
@@ -1087,10 +1135,10 @@ export class VolleyballGame implements IGame {
     const winner = this.getWinner();
     if (winner === 1) {
       ctx.fillStyle = COLOR_P1;
-      ctx.fillText('PLAYER 1 WINS', CANVAS_W / 2, CANVAS_H / 2 - 20);
+      ctx.fillText('HUMAN WINS', CANVAS_W / 2, CANVAS_H / 2 - 20);
     } else if (winner === 2) {
       ctx.fillStyle = COLOR_P2;
-      ctx.fillText('PLAYER 2 WINS', CANVAS_W / 2, CANVAS_H / 2 - 20);
+      ctx.fillText('ALIEN WINS', CANVAS_W / 2, CANVAS_H / 2 - 20);
     } else {
       ctx.fillStyle = '#ffffff';
       ctx.fillText('DRAW', CANVAS_W / 2, CANVAS_H / 2 - 20);

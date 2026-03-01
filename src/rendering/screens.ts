@@ -266,8 +266,8 @@ export function drawEndScreen(t: number): void {
   ctx.fillRect(0, 0, C.W, C.H);
 
   const isLocal = state.gameMode === 'VS_LOCAL';
-  const p1Label = isLocal ? 'ALIEN 1' : 'ALIEN';
-  const p2Label = isLocal ? 'ALIEN 2' : 'AI';
+  const p1Label = isLocal ? 'HUMAN 1' : 'HUMAN';
+  const p2Label = isLocal ? 'HUMAN 2' : 'ALIEN';
 
   const diff = state.playerScore - state.aiScore;
   let winner: string;

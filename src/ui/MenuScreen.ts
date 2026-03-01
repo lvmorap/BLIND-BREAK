@@ -87,20 +87,20 @@ export class MenuScreen {
     // Starfield background
     this.starfield.render(ctx, 0.016);
 
-    // Title: BLIND BREAK
+    // Title: NEXARI
     ctx.textAlign = 'center';
     ctx.font = '900 72px Orbitron, sans-serif';
     ctx.save();
     ctx.shadowColor = COLORS.NEXARI_CYAN;
     ctx.shadowBlur = 30;
     ctx.fillStyle = '#ffffff';
-    ctx.fillText('BLIND BREAK', w / 2, 90);
+    ctx.fillText('NEXARI', w / 2, 90);
     ctx.restore();
 
     // Subtitle: NEXUS ARENA TOURNAMENT
     ctx.font = '700 24px Orbitron, sans-serif';
     ctx.fillStyle = COLORS.NEXARI_PURPLE;
-    ctx.fillText('NEXUS ARENA TOURNAMENT', w / 2, 125);
+    ctx.fillText('NEXARI ARENA TOURNAMENT', w / 2, 125);
 
     // Tagline
     ctx.font = '400 18px Rajdhani, sans-serif';
@@ -217,7 +217,7 @@ export class MenuScreen {
     ctx.font = '600 14px Rajdhani, sans-serif';
     ctx.fillStyle = P1_COLOR;
     ctx.textAlign = 'center';
-    ctx.fillText('● P1: WASD', 20 + pillW / 2, pillY + 19);
+    ctx.fillText('● HUMAN: WASD', 20 + pillW / 2, pillY + 19);
 
     // P2 pill
     ctx.fillStyle = P2_COLOR + '33';
@@ -229,7 +229,7 @@ export class MenuScreen {
     ctx.font = '600 14px Rajdhani, sans-serif';
     ctx.fillStyle = P2_COLOR;
     ctx.textAlign = 'center';
-    ctx.fillText('P2: Arrows ●', w - 20 - pillW / 2, pillY + 19);
+    ctx.fillText('ALIEN: Arrows ●', w - 20 - pillW / 2, pillY + 19);
   }
 
   private drawButton(

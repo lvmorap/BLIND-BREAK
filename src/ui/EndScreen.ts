@@ -54,10 +54,10 @@ export class EndScreen {
     ctx.font = '700 48px Orbitron, sans-serif';
     if (winner === 1) {
       ctx.fillStyle = P1_COLOR;
-      ctx.fillText('PLAYER 1 WINS!', w / 2, 120);
+      ctx.fillText('HUMAN WINS!', w / 2, 120);
     } else if (winner === 2) {
       ctx.fillStyle = P2_COLOR;
-      ctx.fillText('PLAYER 2 WINS!', w / 2, 120);
+      ctx.fillText('ALIEN WINS!', w / 2, 120);
     } else {
       ctx.fillStyle = '#ffffff';
       ctx.fillText("IT'S A TIE!", w / 2, 120);
@@ -111,10 +111,10 @@ export class EndScreen {
       ctx.textAlign = 'right';
       if (round.winner === 1) {
         ctx.fillStyle = P1_COLOR;
-        ctx.fillText('P1', w / 2 + 120, y);
+        ctx.fillText('HUMAN', w / 2 + 120, y);
       } else if (round.winner === 2) {
         ctx.fillStyle = P2_COLOR;
-        ctx.fillText('P2', w / 2 + 120, y);
+        ctx.fillText('ALIEN', w / 2 + 120, y);
       } else {
         ctx.fillStyle = '#888888';
         ctx.fillText('DRAW', w / 2 + 120, y);

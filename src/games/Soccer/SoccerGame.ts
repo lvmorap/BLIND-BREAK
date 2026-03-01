@@ -112,8 +112,13 @@ export class SoccerGame implements IGame {
   private flashTimer = 0;
   private flashColor = '';
   private elapsed = 0;
+  private aiEnabled = false;
 
   // ── IGame lifecycle ──────────────────────────────────────────────────────
+  setAIMode(enabled: boolean): void {
+    this.aiEnabled = enabled;
+  }
+
   setDurationMultiplier(mult: number): void {
     this.durationMult = mult;
   }
@@ -172,7 +177,11 @@ export class SoccerGame implements IGame {
     this.elapsed += dt;
 
     const p1Input = this.input.getPlayer1();
-    const p2Input = this.input.getPlayer2();
+    let p2Input = this.input.getPlayer2();
+
+    if (this.aiEnabled) {
+      p2Input = this.computeAIInput();
+    }
 
     this.updatePlayer(this.p1, p1Input, dt);
     this.updatePlayer(this.p2, p2Input, dt);
@@ -367,6 +376,45 @@ export class SoccerGame implements IGame {
         return;
       }
     }
+  }
+
+  // ── AI ──────────────────────────────────────────────────────────────────
+  private computeAIInput(): PlayerInput {
+    const goalX = FIELD_X + FIELD_W;
+    const goalY = this.goalR.y;
+    const fieldMid = FIELD_X + FIELD_W / 2;
+
+    // When ball is on P2's side, position between ball and goal to defend
+    const ballOnMySide = this.ball.x > fieldMid;
+    let targetX: number;
+    let targetY: number;
+
+    if (ballOnMySide) {
+      // Defend: stay between ball and goal center
+      targetX = (this.ball.x + goalX) / 2;
+      targetY = (this.ball.y + goalY) / 2;
+    } else {
+      // Attack: chase the ball
+      targetX = this.ball.x;
+      targetY = this.ball.y;
+    }
+
+    const dx = targetX - this.p2.x;
+    const dy = targetY - this.p2.y;
+    const deadzone = 8;
+
+    const toBallDx = this.ball.x - this.p2.x;
+    const toBallDy = this.ball.y - this.p2.y;
+    const distToBall = Math.sqrt(toBallDx * toBallDx + toBallDy * toBallDy);
+
+    return {
+      left: dx < -deadzone,
+      right: dx > deadzone,
+      up: dy < -deadzone,
+      down: dy > deadzone,
+      action1: distToBall < KICK_RANGE + BALL_RADIUS + 10,
+      action2: false,
+    };
   }
 
   // ── Render ───────────────────────────────────────────────────────────────

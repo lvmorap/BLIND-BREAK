@@ -4,8 +4,8 @@ import { ctx } from './canvas.ts';
 
 export function drawHUD(): void {
   const isLocal = state.gameMode === 'VS_LOCAL';
-  const p1Label = isLocal ? 'ALIEN 1' : 'ALIEN';
-  const p2Label = isLocal ? 'ALIEN 2' : 'AI';
+  const p1Label = isLocal ? 'HUMAN 1' : 'HUMAN';
+  const p2Label = isLocal ? 'HUMAN 2' : 'ALIEN';
 
   // Player 1 score — bottom left
   ctx.fillStyle = C.PLAYER_COLOR;
