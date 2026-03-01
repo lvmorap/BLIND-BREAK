@@ -185,6 +185,10 @@ export class SumoGame implements IGame {
     this.aiEnabled = enabled;
   }
 
+  setAIMode(enabled: boolean): void {
+    this.aiEnabled = enabled;
+  }
+
   setDurationMultiplier(mult: number): void {
     this.durationMult = mult;
   }

@@ -216,6 +216,20 @@ export class FormulaGame implements IGame {
 
   private aiEnabled = false;
 
+  // Jupiter theming
+  private bgStars: Array<{ x: number; y: number; size: number; twinkle: number }> = [];
+  private bgComets: Array<{
+    x: number;
+    y: number;
+    vx: number;
+    vy: number;
+    size: number;
+    alpha: number;
+    tailLen: number;
+  }> = [];
+
+  private aiEnabled = false;
+
   // ── IGame lifecycle ──────────────────────────────────────────────────────
   setDurationMultiplier(mult: number): void {
     this.durationMult = mult;
