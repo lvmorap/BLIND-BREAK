@@ -65,9 +65,19 @@ export class TournamentHUD {
 
     // Timer (if > 0)
     if (this.timer > 0) {
+      const danger = this.timer <= 10;
+      ctx.save();
+      if (danger) {
+        // Pulse scale 1.0 → 1.1 → 1.0 at 1 Hz
+        const pulse = 1.0 + 0.1 * Math.abs(Math.sin((performance.now() / 1000) * Math.PI));
+        ctx.translate(w / 2, 50);
+        ctx.scale(pulse, pulse);
+        ctx.translate(-w / 2, -50);
+      }
       ctx.font = '700 20px Orbitron, sans-serif';
-      ctx.fillStyle = this.timer < 10 ? '#ff4466' : TEXT_COLOR;
+      ctx.fillStyle = danger ? '#ff4422' : TEXT_COLOR;
       ctx.fillText(Math.ceil(this.timer).toString(), w / 2, 50);
+      ctx.restore();
     }
   }
 }

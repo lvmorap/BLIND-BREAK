@@ -1,5 +1,6 @@
 import { InputManager } from '../../core/InputManager.ts';
 import type { IGame } from '../IGame.ts';
+import { screenShake } from '../../core/ScreenShake.ts';
 
 // ── Constants ──────────────────────────────────────────────────────────────
 const W = 1280;
@@ -75,6 +76,7 @@ export class PingPongGame implements IGame {
   private ballVy: number = 0;
   private ballSpeed: number = BALL_INITIAL_SPEED;
   private trail: Vec2[] = [];
+  private elapsed: number = 0;
 
   // Scoring & timer
   private scoreP1: number = 0;
@@ -134,6 +136,8 @@ export class PingPongGame implements IGame {
       this.input.update();
       return;
     }
+
+    this.elapsed += dt;
 
     // Post-score freeze
     if (this.freezeTimer > 0) {
@@ -196,9 +200,11 @@ export class PingPongGame implements IGame {
     // ── Scoring ──────────────────────────────────────────────────────────
     if (this.ball.x + BALL_RADIUS < 0) {
       this.scoreP2++;
+      screenShake.trigger(0.2, 200);
       this.resetAfterScore(1);
     } else if (this.ball.x - BALL_RADIUS > W) {
       this.scoreP1++;
+      screenShake.trigger(0.2, 200);
       this.resetAfterScore(-1);
     }
 
@@ -354,6 +360,28 @@ export class PingPongGame implements IGame {
     ctx.fillStyle = '#ffffff';
     ctx.fill();
     ctx.restore();
+
+    // Lightning arcs
+    const arcCount = 5;
+    ctx.save();
+    ctx.strokeStyle = 'rgba(0, 245, 255, 0.6)';
+    ctx.lineWidth = 1.2;
+    for (let i = 0; i < arcCount; i++) {
+      const baseAngle = ((Math.PI * 2) / arcCount) * i + this.elapsed * 2;
+      const startX = this.ball.x + Math.cos(baseAngle) * BALL_RADIUS;
+      const startY = this.ball.y + Math.sin(baseAngle) * BALL_RADIUS;
+      const reach = 8 + Math.sin(this.elapsed * 5 + i * 1.7) * 3.5;
+      const endX = this.ball.x + Math.cos(baseAngle) * (BALL_RADIUS + reach);
+      const endY = this.ball.y + Math.sin(baseAngle) * (BALL_RADIUS + reach);
+      const wobble = Math.sin(this.elapsed * 8 + i * 2.3) * 4;
+      const cpX = (startX + endX) / 2 + Math.cos(baseAngle + Math.PI / 2) * wobble;
+      const cpY = (startY + endY) / 2 + Math.sin(baseAngle + Math.PI / 2) * wobble;
+      ctx.beginPath();
+      ctx.moveTo(startX, startY);
+      ctx.quadraticCurveTo(cpX, cpY, endX, endY);
+      ctx.stroke();
+    }
+    ctx.restore();
   }
 
   private drawPaddle(ctx: CanvasRenderingContext2D, paddle: Paddle, color: string): void {
@@ -364,6 +392,21 @@ export class PingPongGame implements IGame {
     ctx.beginPath();
     ctx.roundRect(paddle.x, paddle.y, paddle.w, paddle.h, PADDLE_R);
     ctx.fill();
+    ctx.restore();
+
+    // Scanline texture
+    ctx.save();
+    ctx.beginPath();
+    ctx.roundRect(paddle.x, paddle.y, paddle.w, paddle.h, PADDLE_R);
+    ctx.clip();
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.2)';
+    ctx.lineWidth = 1;
+    for (let y = paddle.y + 1; y < paddle.y + paddle.h; y += 2) {
+      ctx.beginPath();
+      ctx.moveTo(paddle.x, y);
+      ctx.lineTo(paddle.x + paddle.w, y);
+      ctx.stroke();
+    }
     ctx.restore();
   }
 

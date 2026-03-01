@@ -1,5 +1,6 @@
 import { InputManager, type PlayerInput } from '../../core/InputManager.ts';
 import type { IGame } from '../IGame.ts';
+import { screenShake } from '../../core/ScreenShake.ts';
 
 // Canvas
 const W = 1280;
@@ -11,7 +12,7 @@ const CY = H / 2;
 const ARENA_RADIUS_INITIAL = 280;
 const ARENA_RADIUS_FINAL = ARENA_RADIUS_INITIAL * 0.4; // 112
 const ARENA_SHRINK_DURATION = 60; // seconds
-const BG_COLOR = '#0a0205';
+const BG_COLOR = '#020210';
 
 // Players
 const PLAYER_RADIUS = 20;
@@ -180,12 +181,9 @@ export class SumoGame implements IGame {
 
   private aiEnabled = false;
 
-  private lavaImg: HTMLImageElement | null = null;
-  private lavaCracksImg: HTMLImageElement | null = null;
-  private stoneImg: HTMLImageElement | null = null;
-  private volcanoBgImg: HTMLImageElement | null = null;
-  private lavaPattern: CanvasPattern | null = null;
-  private stonePattern: CanvasPattern | null = null;
+  setAIMode(enabled: boolean): void {
+    this.aiEnabled = enabled;
+  }
 
   setAIMode(enabled: boolean): void {
     this.aiEnabled = enabled;
@@ -224,19 +222,6 @@ export class SumoGame implements IGame {
         amplitude: 10 + Math.random() * 20,
       });
     }
-
-    // Load volcano textures
-    const loadImg = (src: string): HTMLImageElement => {
-      const img = new Image();
-      img.src = src;
-      return img;
-    };
-    this.lavaImg = loadImg('./assets/volcano/lava.png');
-    this.lavaCracksImg = loadImg('./assets/volcano/lava-cracks.png');
-    this.stoneImg = loadImg('./assets/volcano/stone.png');
-    this.volcanoBgImg = loadImg('./assets/volcano/volcano-bg.svg');
-    this.lavaPattern = null;
-    this.stonePattern = null;
 
     this.p1 = this.createFighter(-ARENA_RADIUS_INITIAL * 0.5, 0);
     this.p2 = this.createFighter(ARENA_RADIUS_INITIAL * 0.5, 0);
@@ -457,6 +442,7 @@ export class SumoGame implements IGame {
 
       // Collision screen shake
       this.collisionShakeTimer = 0.15;
+      screenShake.trigger(0.5, 200);
     }
   }
 
@@ -651,26 +637,61 @@ export class SumoGame implements IGame {
   }
 
   private drawBackground(ctx: CanvasRenderingContext2D): void {
-    // Volcano SVG background or dark volcanic gradient
-    if (this.volcanoBgImg?.complete && this.volcanoBgImg.naturalWidth > 0) {
-      ctx.drawImage(this.volcanoBgImg, -10, -10, W + 20, H + 20);
-    } else {
-      const bg = ctx.createLinearGradient(0, 0, 0, H);
-      bg.addColorStop(0, BG_COLOR);
-      bg.addColorStop(1, '#3a1505');
-      ctx.fillStyle = bg;
-      ctx.fillRect(-10, -10, W + 20, H + 20);
-    }
+    ctx.save();
 
-    // Volcanic glow from crater (center-top)
-    const glow = ctx.createRadialGradient(CX, 0, 0, CX, 0, H * 0.8);
-    glow.addColorStop(0, 'rgba(255, 102, 0, 0.4)');
-    glow.addColorStop(0.5, 'rgba(255, 60, 0, 0.12)');
-    glow.addColorStop(1, 'rgba(255, 60, 0, 0)');
-    ctx.fillStyle = glow;
+    // Deep space background
+    ctx.fillStyle = BG_COLOR;
     ctx.fillRect(-10, -10, W + 20, H + 20);
 
-    // Floating ember particles
+    // Saturn in bottom-left, partially visible
+    const saturnX = -60;
+    const saturnY = H + 40;
+    const saturnRx = 320;
+    const saturnRy = 280;
+
+    // Saturn body – tan/gold gradient
+    ctx.save();
+    ctx.filter = 'blur(2px)';
+    const satGrad = ctx.createRadialGradient(
+      saturnX + saturnRx * 0.15,
+      saturnY - saturnRy * 0.15,
+      saturnRy * 0.1,
+      saturnX,
+      saturnY,
+      saturnRy,
+    );
+    satGrad.addColorStop(0, '#e0bd6e');
+    satGrad.addColorStop(0.5, '#c8944a');
+    satGrad.addColorStop(1, '#6a4420');
+    ctx.beginPath();
+    ctx.ellipse(saturnX, saturnY, saturnRx, saturnRy, 0, 0, Math.PI * 2);
+    ctx.fillStyle = satGrad;
+    ctx.fill();
+    ctx.restore();
+
+    // Saturn rings – elliptical arcs at varying opacities
+    ctx.save();
+    ctx.filter = 'blur(1px)';
+    const ringColors = [
+      { rx: saturnRx * 1.55, ry: saturnRy * 0.35, alpha: 0.35, w: 12, color: '#d4aa60' },
+      { rx: saturnRx * 1.45, ry: saturnRy * 0.3, alpha: 0.25, w: 8, color: '#c89850' },
+      { rx: saturnRx * 1.35, ry: saturnRy * 0.26, alpha: 0.2, w: 6, color: '#b08040' },
+      { rx: saturnRx * 1.65, ry: saturnRy * 0.4, alpha: 0.15, w: 18, color: '#c0a060' },
+    ];
+    for (const ring of ringColors) {
+      ctx.beginPath();
+      ctx.ellipse(saturnX, saturnY, ring.rx, ring.ry, -0.15, Math.PI + 0.3, Math.PI * 2 - 0.3);
+      ctx.strokeStyle = ring.color;
+      ctx.globalAlpha = ring.alpha;
+      ctx.lineWidth = ring.w;
+      ctx.stroke();
+    }
+    ctx.globalAlpha = 1;
+    ctx.filter = 'none';
+    ctx.restore();
+
+    // Dim star-like particles (white/blue, small)
+    ctx.save();
     for (const ember of this.embers) {
       ember.y -= ember.speed * 0.016;
       ember.x += Math.sin(this.elapsed * 2 + ember.phase) * ember.amplitude * 0.016;
@@ -678,83 +699,52 @@ export class SumoGame implements IGame {
         ember.y = H + 10;
         ember.x = Math.random() * W;
       }
-      const flicker = 0.5 + 0.5 * Math.sin(this.elapsed * 4 + ember.phase);
-      const r = 255;
-      const g = Math.floor(80 + flicker * 120);
-      ctx.globalAlpha = 0.4 + flicker * 0.4;
-      ctx.fillStyle = `rgb(${r}, ${g}, 0)`;
+      const twinkle = 0.5 + 0.5 * Math.sin(this.elapsed * 3 + ember.phase);
+      ctx.globalAlpha = 0.2 + twinkle * 0.2;
+      // Mix white and blue
+      const blue = Math.floor(200 + twinkle * 55);
+      ctx.fillStyle = `rgb(${180 + Math.floor(twinkle * 75)}, ${200 + Math.floor(twinkle * 55)}, ${blue})`;
       ctx.beginPath();
-      ctx.arc(ember.x, ember.y, ember.size, 0, Math.PI * 2);
+      ctx.arc(ember.x, ember.y, Math.min(ember.size, 2), 0, Math.PI * 2);
       ctx.fill();
     }
-    ctx.globalAlpha = 1;
+    ctx.restore();
+
+    ctx.restore();
   }
 
   private drawArena(ctx: CanvasRenderingContext2D): void {
     const r = this.arenaRadius;
 
-    // Lava underneath (larger area)
-    const lavaR = r + 40;
+    // Outer glow ring – golden
     ctx.save();
-    ctx.beginPath();
-    ctx.arc(CX, CY, lavaR, 0, Math.PI * 2);
-    if (this.lavaImg?.complete && this.lavaImg.naturalWidth > 0) {
-      if (!this.lavaPattern) {
-        this.lavaPattern = ctx.createPattern(this.lavaImg, 'repeat');
-      }
-      if (this.lavaPattern) {
-        ctx.fillStyle = this.lavaPattern;
-      } else {
-        ctx.fillStyle = '#cc4400';
-      }
-    } else {
-      const lavaGrad = ctx.createRadialGradient(CX, CY, 0, CX, CY, lavaR);
-      lavaGrad.addColorStop(0, '#ff6600');
-      lavaGrad.addColorStop(1, '#aa2200');
-      ctx.fillStyle = lavaGrad;
-    }
-    ctx.fill();
-    ctx.restore();
-
-    // Stone platform with glowing lava edge
-    ctx.save();
-    ctx.shadowColor = '#ff6600';
-    ctx.shadowBlur = 25;
+    ctx.shadowColor = '#ffd700';
+    ctx.shadowBlur = 20;
     ctx.beginPath();
     ctx.arc(CX, CY, r + 2, 0, Math.PI * 2);
-    ctx.strokeStyle = '#ff6600';
+    ctx.strokeStyle = '#ffd700';
     ctx.lineWidth = 4;
     ctx.stroke();
     ctx.restore();
 
-    // Stone platform fill
+    // Arena surface – textured radial gradient (golden orbital platform)
     ctx.save();
     ctx.beginPath();
     ctx.arc(CX, CY, r, 0, Math.PI * 2);
     ctx.clip();
 
-    if (this.stoneImg?.complete && this.stoneImg.naturalWidth > 0) {
-      if (!this.stonePattern) {
-        this.stonePattern = ctx.createPattern(this.stoneImg, 'repeat');
-      }
-      if (this.stonePattern) {
-        ctx.fillStyle = this.stonePattern;
-      } else {
-        ctx.fillStyle = '#3a3530';
-      }
-    } else {
-      const stoneGrad = ctx.createRadialGradient(CX, CY, 0, CX, CY, r);
-      stoneGrad.addColorStop(0, '#3a3530');
-      stoneGrad.addColorStop(1, '#252018');
-      ctx.fillStyle = stoneGrad;
-    }
+    const surfGrad = ctx.createRadialGradient(CX, CY, 0, CX, CY, r);
+    surfGrad.addColorStop(0, '#c4a44a');
+    surfGrad.addColorStop(0.6, '#9a7a30');
+    surfGrad.addColorStop(1, '#7a4a18');
+    ctx.fillStyle = surfGrad;
     ctx.fillRect(CX - r, CY - r, r * 2, r * 2);
     ctx.restore();
 
-    // Stone border
+    // Arena border – golden stroke
     ctx.beginPath();
     ctx.arc(CX, CY, r, 0, Math.PI * 2);
-    ctx.strokeStyle = '#5a3a1a';
+    ctx.strokeStyle = '#ffd700';
     ctx.lineWidth = 3;
     ctx.stroke();
   }
@@ -773,7 +763,7 @@ export class SumoGame implements IGame {
     );
     const pulse = 0.5 + 0.5 * Math.sin(this.elapsed * (4 + danger * 8));
 
-    // Lava encroaching: fill between current arena radius and original radius
+    // Pulsing red overlay between current and original radius
     if (r < ARENA_RADIUS_INITIAL - 2) {
       ctx.save();
       ctx.beginPath();
@@ -781,35 +771,34 @@ export class SumoGame implements IGame {
       ctx.arc(CX, CY, r, 0, Math.PI * 2, true);
       ctx.clip();
 
-      if (this.lavaCracksImg?.complete && this.lavaCracksImg.naturalWidth > 0) {
-        const pattern = ctx.createPattern(this.lavaCracksImg, 'repeat');
-        if (pattern) {
-          ctx.fillStyle = pattern;
-        } else {
-          ctx.fillStyle = '#aa3300';
-        }
-      } else {
-        const lavaGrad = ctx.createRadialGradient(CX, CY, r, CX, CY, outerR);
-        lavaGrad.addColorStop(0, '#ff6600');
-        lavaGrad.addColorStop(1, '#661100');
-        ctx.fillStyle = lavaGrad;
-      }
+      const dangerGrad = ctx.createRadialGradient(CX, CY, r, CX, CY, outerR);
+      dangerGrad.addColorStop(0, `rgba(200, 30, 30, ${0.3 + danger * 0.4})`);
+      dangerGrad.addColorStop(1, `rgba(80, 10, 10, ${0.1 + danger * 0.2})`);
+      ctx.fillStyle = dangerGrad;
       ctx.fillRect(CX - outerR, CY - outerR, outerR * 2, outerR * 2);
       ctx.restore();
     }
 
-    // Glowing edge of stone platform
+    // Glowing edge – transitions from orange to red as danger increases
     const edgeGlow = ctx.createRadialGradient(CX, CY, r - 15, CX, CY, r + 5);
     const edgeIntensity = 0.3 + danger * 0.5 * pulse;
-    edgeGlow.addColorStop(0, 'rgba(255, 100, 0, 0)');
-    edgeGlow.addColorStop(0.7, `rgba(255, 80, 0, ${edgeIntensity})`);
-    edgeGlow.addColorStop(1, `rgba(255, 40, 0, ${edgeIntensity * 0.5})`);
+    const redComp = Math.floor(255 - danger * 55);
+    const greenComp = Math.floor(100 - danger * 80);
+    edgeGlow.addColorStop(0, `rgba(${redComp}, ${greenComp}, 0, 0)`);
+    edgeGlow.addColorStop(
+      0.7,
+      `rgba(${redComp}, ${Math.floor(greenComp * 0.8)}, 0, ${edgeIntensity})`,
+    );
+    edgeGlow.addColorStop(
+      1,
+      `rgba(${redComp}, ${Math.floor(greenComp * 0.4)}, 0, ${edgeIntensity * 0.5})`,
+    );
     ctx.beginPath();
     ctx.arc(CX, CY, r + 5, 0, Math.PI * 2);
     ctx.fillStyle = edgeGlow;
     ctx.fill();
 
-    // Animated lava bubbles popping at the edge
+    // Golden sparks at the edge (replacing lava bubbles)
     while (this.lavaBubbles.length < 4) {
       this.lavaBubbles.push({
         angle: Math.random() * Math.PI * 2,
@@ -832,10 +821,12 @@ export class SumoGame implements IGame {
       const by = CY + Math.sin(b.angle) * (r + 5);
       const alpha = progress < 0.5 ? progress * 2 : (1 - progress) * 2;
       const bSize = b.size * (0.5 + progress * 0.5);
+      ctx.save();
       ctx.beginPath();
       ctx.arc(bx, by, bSize, 0, Math.PI * 2);
-      ctx.fillStyle = `rgba(255, 120, 0, ${alpha * 0.7})`;
+      ctx.fillStyle = `rgba(255, 215, 0, ${alpha * 0.7})`;
       ctx.fill();
+      ctx.restore();
     }
   }
 
@@ -853,10 +844,10 @@ export class SumoGame implements IGame {
     ctx.fillStyle = grad;
     ctx.fill();
 
-    // Obsidian circle
+    // Amber/golden inner circle
     const obsGrad = ctx.createRadialGradient(z.pos.x, z.pos.y, 0, z.pos.x, z.pos.y, r);
-    obsGrad.addColorStop(0, 'rgba(42, 16, 53, 0.5)');
-    obsGrad.addColorStop(1, 'rgba(42, 16, 53, 0.25)');
+    obsGrad.addColorStop(0, 'rgba(200, 160, 60, 0.5)');
+    obsGrad.addColorStop(1, 'rgba(120, 80, 20, 0.25)');
     ctx.beginPath();
     ctx.arc(z.pos.x, z.pos.y, r, 0, Math.PI * 2);
     ctx.fillStyle = obsGrad;
@@ -989,7 +980,7 @@ export class SumoGame implements IGame {
 
   private drawHUD(ctx: CanvasRenderingContext2D): void {
     ctx.save();
-    ctx.font = 'bold 28px Orbitron, monospace';
+    ctx.font = 'bold 28px Orbitron, Rajdhani, sans-serif';
     ctx.textBaseline = 'top';
 
     // P1 score (top-left)
@@ -1009,7 +1000,7 @@ export class SumoGame implements IGame {
     ctx.fillText(`${secs}s`, CX, 20);
 
     // Zone indicator
-    ctx.font = '16px Orbitron, monospace';
+    ctx.font = '16px Orbitron, Rajdhani, sans-serif';
     ctx.fillStyle = ZONE_COLOR;
     ctx.fillText('● ZONE +2/s', CX, 55);
 
@@ -1025,7 +1016,7 @@ export class SumoGame implements IGame {
     ctx.strokeRect(3, 3, W - 6, H - 6);
 
     // Warning text
-    ctx.font = 'bold 24px Orbitron, monospace';
+    ctx.font = 'bold 24px Orbitron, Rajdhani, sans-serif';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'bottom';
     ctx.fillStyle = `rgba(255, 140, 40, ${0.6 + 0.4 * Math.sin(this.elapsed * 15)})`;

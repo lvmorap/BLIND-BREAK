@@ -10,7 +10,6 @@ const CY = CH / 2;
 const TRACK_HALF_WIDTH = 50;
 const TRACK_POINTS = 120;
 
-const CAR_W = 24;
 const CAR_H = 12;
 const MAX_SPEED = 300;
 const ACCEL = 200;
@@ -48,8 +47,8 @@ const OBSTACLE_LIFETIME = 15;
 const OBSTACLE_SLOW_DURATION = 1.5;
 const OBSTACLE_SLOW_FACTOR = 0.2;
 
-const BG_COLOR = '#060410';
-const TRACK_COLOR = '#2a1a0a';
+const BG_COLOR = '#020210';
+const TRACK_COLOR = '#c8944a';
 const P1_COLOR = '#00e5ff';
 const P2_COLOR = '#ff4466';
 
@@ -201,6 +200,21 @@ export class FormulaGame implements IGame {
   private powerupSpawnTimer = 0;
   private nextPowerupDelay = 0;
   private startAngle = 0;
+  private elapsed = 0;
+
+  // Jupiter theming
+  private bgStars: Array<{ x: number; y: number; size: number; twinkle: number }> = [];
+  private bgComets: Array<{
+    x: number;
+    y: number;
+    vx: number;
+    vy: number;
+    size: number;
+    alpha: number;
+    tailLen: number;
+  }> = [];
+
+  private aiEnabled = false;
 
   // Jupiter theming
   private bgStars: Array<{ x: number; y: number; size: number; twinkle: number }> = [];
@@ -271,6 +285,7 @@ export class FormulaGame implements IGame {
     this.winner = null;
     this.powerupSpawnTimer = 0;
     this.nextPowerupDelay = this.randomPowerupDelay();
+    this.elapsed = 0;
 
     // Init background stars
     this.bgStars = [];
@@ -286,6 +301,7 @@ export class FormulaGame implements IGame {
   }
 
   update(dt: number): void {
+    this.elapsed += dt;
     if (this.finished) {
       this.input.update();
       return;
@@ -368,8 +384,37 @@ export class FormulaGame implements IGame {
     this.updateBgComets();
     this.renderBgComets(ctx);
 
-    // Jupiter in center (small)
-    this.renderJupiter(ctx);
+    // Saturn planet — bottom-left
+    ctx.save();
+    const saturnX = 120;
+    const saturnY = CH - 50;
+    const saturnRx = 140;
+    const saturnRy = 100;
+    const planetGrad = ctx.createRadialGradient(
+      saturnX - 30,
+      saturnY - 20,
+      10,
+      saturnX,
+      saturnY,
+      saturnRx,
+    );
+    planetGrad.addColorStop(0, '#e8b862');
+    planetGrad.addColorStop(0.5, '#c8944a');
+    planetGrad.addColorStop(1, '#8a6030');
+    ctx.fillStyle = planetGrad;
+    ctx.beginPath();
+    ctx.ellipse(saturnX, saturnY, saturnRx, saturnRy, 0, 0, Math.PI * 2);
+    ctx.fill();
+    for (let r = 0; r < 4; r++) {
+      ctx.globalAlpha = 0.15 + r * 0.08;
+      ctx.beginPath();
+      ctx.ellipse(saturnX, saturnY, saturnRx + 30 + r * 18, 25 + r * 6, -0.3, 0, Math.PI * 2);
+      ctx.strokeStyle = r % 2 === 0 ? '#c8944a' : '#ddbb66';
+      ctx.lineWidth = 6;
+      ctx.stroke();
+    }
+    ctx.globalAlpha = 1;
+    ctx.restore();
 
     this.renderTrack(ctx);
     this.renderStartLine(ctx);
@@ -737,122 +782,53 @@ export class FormulaGame implements IGame {
     }
   }
 
-  private renderJupiter(ctx: CanvasRenderingContext2D): void {
-    const jx = CX;
-    const jy = CY;
-    const jr = 55;
-
-    ctx.save();
-
-    // Jupiter body — warm orange/brown planet
-    const jupGrad = ctx.createRadialGradient(jx - 10, jy - 10, 5, jx, jy, jr);
-    jupGrad.addColorStop(0, '#e8c070');
-    jupGrad.addColorStop(0.3, '#c4884a');
-    jupGrad.addColorStop(0.6, '#a06030');
-    jupGrad.addColorStop(0.85, '#7a4020');
-    jupGrad.addColorStop(1, '#4a2510');
-    ctx.fillStyle = jupGrad;
-    ctx.beginPath();
-    ctx.arc(jx, jy, jr, 0, Math.PI * 2);
-    ctx.fill();
-
-    // Jupiter bands — horizontal stripes
-    ctx.globalAlpha = 0.3;
-    const bandColors = ['#d4a060', '#8a5030', '#c08848', '#6a3820', '#b88040'];
-    for (let i = 0; i < bandColors.length; i++) {
-      const bandY = jy - jr + ((2 * jr) / (bandColors.length + 1)) * (i + 1);
-      const bandH = 6 + (i % 2) * 4;
-      ctx.fillStyle = bandColors[i] ?? '#a06030';
-      ctx.beginPath();
-      // Clip to circle
-      const halfW = Math.sqrt(Math.max(0, jr * jr - (bandY - jy) * (bandY - jy)));
-      ctx.fillRect(jx - halfW, bandY - bandH / 2, halfW * 2, bandH);
-    }
-    ctx.globalAlpha = 1;
-
-    // Great Red Spot
-    ctx.fillStyle = 'rgba(180, 60, 30, 0.4)';
-    ctx.beginPath();
-    ctx.ellipse(jx + 15, jy + 10, 12, 8, 0.2, 0, Math.PI * 2);
-    ctx.fill();
-
-    // Atmosphere glow
-    ctx.shadowColor = '#cc8844';
-    ctx.shadowBlur = 25;
-    ctx.strokeStyle = 'rgba(200, 140, 80, 0.15)';
-    ctx.lineWidth = 3;
-    ctx.beginPath();
-    ctx.arc(jx, jy, jr + 4, 0, Math.PI * 2);
-    ctx.stroke();
-    ctx.shadowBlur = 0;
-
-    // Ring glow around Jupiter (thin ring)
-    ctx.globalAlpha = 0.2;
-    ctx.strokeStyle = '#ffcc88';
-    ctx.lineWidth = 2;
-    ctx.beginPath();
-    ctx.ellipse(jx, jy, jr + 18, jr * 0.25, -0.15, 0, Math.PI * 2);
-    ctx.stroke();
-    ctx.globalAlpha = 0.12;
-    ctx.strokeStyle = '#ffddaa';
-    ctx.lineWidth = 4;
-    ctx.beginPath();
-    ctx.ellipse(jx, jy, jr + 26, jr * 0.3, -0.15, 0, Math.PI * 2);
-    ctx.stroke();
-    ctx.globalAlpha = 1;
-
-    ctx.restore();
-  }
-
   // ── Rendering ──────────────────────────────────────────────────────────
   private renderTrack(ctx: CanvasRenderingContext2D): void {
-    // Outer fill
+    // Track surface with Saturn-ring banding
+    ctx.save();
     ctx.beginPath();
     for (const [i, p] of this.outerTrack.entries()) {
       if (i === 0) ctx.moveTo(p.x, p.y);
       else ctx.lineTo(p.x, p.y);
     }
     ctx.closePath();
-    ctx.fillStyle = TRACK_COLOR;
-    ctx.fill();
-
-    // Cut out inner
-    ctx.beginPath();
     for (const [i, p] of this.innerTrack.entries()) {
       if (i === 0) ctx.moveTo(p.x, p.y);
       else ctx.lineTo(p.x, p.y);
     }
     ctx.closePath();
-    ctx.fillStyle = BG_COLOR;
-    ctx.fill();
+    ctx.clip('evenodd');
 
-    // Outer edge (white + kerb)
+    // Base amber fill
+    ctx.fillStyle = TRACK_COLOR;
+    ctx.fillRect(0, 0, CW, CH);
+
+    // Alternating lighter bands
+    ctx.fillStyle = '#ddbb66';
+    for (let y = 0; y < CH; y += 12) {
+      ctx.fillRect(0, y, CW, 4);
+    }
+    ctx.restore();
+
+    // Golden glow edges
     this.renderKerbEdge(ctx, this.outerTrack);
-    // Inner edge
     this.renderKerbEdge(ctx, this.innerTrack);
   }
 
   private renderKerbEdge(ctx: CanvasRenderingContext2D, poly: Vec2[]): void {
+    ctx.save();
     ctx.beginPath();
     for (const [i, p] of poly.entries()) {
       if (i === 0) ctx.moveTo(p.x, p.y);
       else ctx.lineTo(p.x, p.y);
     }
     ctx.closePath();
-    // Glowing ring edge (Jupiter rings style)
-    ctx.shadowColor = '#ffaa44';
+    ctx.strokeStyle = '#ffd70066';
+    ctx.shadowColor = '#ffd700';
     ctx.shadowBlur = 8;
-    ctx.strokeStyle = '#cc8833';
-    ctx.lineWidth = 2;
-    ctx.stroke();
-    ctx.shadowBlur = 0;
-
-    // Kerb pattern (amber/gold dashes)
-    ctx.setLineDash([8, 8]);
-    ctx.strokeStyle = '#ffcc44';
     ctx.lineWidth = 3;
     ctx.stroke();
-    ctx.setLineDash([]);
+    ctx.restore();
   }
 
   private renderStartLine(ctx: CanvasRenderingContext2D): void {
@@ -867,12 +843,19 @@ export class FormulaGame implements IGame {
     ctx.translate(pt.x, pt.y);
     ctx.rotate(perpAngle);
 
+    const pulse = 0.6 + 0.4 * Math.sin(this.elapsed * 4);
+    ctx.globalAlpha = pulse;
+    ctx.shadowColor = '#ffffff';
+    ctx.shadowBlur = 10;
+
     for (let r = 0; r < 2; r++) {
       for (let c = 0; c < count; c++) {
-        ctx.fillStyle = (r + c) % 2 === 0 ? '#ffffff' : '#000000';
+        ctx.fillStyle = (r + c) % 2 === 0 ? '#ffffffcc' : '#ffffff33';
         ctx.fillRect(-half + c * size, -size + r * size, size, size);
       }
     }
+    ctx.shadowBlur = 0;
+    ctx.globalAlpha = 1;
     ctx.restore();
   }
 
@@ -903,26 +886,81 @@ export class FormulaGame implements IGame {
 
   private renderPowerups(ctx: CanvasRenderingContext2D): void {
     for (const p of this.powerups) {
-      let color: string;
-      switch (p.type) {
-        case 'mirror':
-          color = '#aa44ff';
-          break;
-        case 'speed':
-          color = '#ffdd44';
-          break;
-        case 'obstacle':
-          color = '#ff4444';
-          break;
-      }
       ctx.save();
       ctx.translate(p.x, p.y);
-      ctx.rotate(p.angle);
-      ctx.shadowColor = color;
-      ctx.shadowBlur = 10;
-      ctx.fillStyle = color;
-      ctx.fillRect(-POWERUP_SIZE / 2, -POWERUP_SIZE / 2, POWERUP_SIZE, POWERUP_SIZE);
-      ctx.shadowBlur = 0;
+      ctx.globalAlpha = 0.6 + 0.4 * Math.sin(this.elapsed * 3);
+
+      switch (p.type) {
+        case 'mirror': {
+          // Purple swirling vortex
+          ctx.rotate(p.angle);
+          const grad = ctx.createRadialGradient(0, 0, 0, 0, 0, POWERUP_SIZE);
+          grad.addColorStop(0, '#dd66ff');
+          grad.addColorStop(0.6, '#aa44ff');
+          grad.addColorStop(1, '#6600aa00');
+          ctx.fillStyle = grad;
+          ctx.beginPath();
+          ctx.arc(0, 0, POWERUP_SIZE, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.strokeStyle = '#cc88ff';
+          ctx.lineWidth = 1.5;
+          for (let s = 0; s < 3; s++) {
+            const sAngle = (s / 3) * Math.PI * 2;
+            ctx.beginPath();
+            ctx.arc(0, 0, POWERUP_SIZE * 0.6, sAngle, sAngle + Math.PI * 0.6);
+            ctx.stroke();
+          }
+          break;
+        }
+        case 'speed': {
+          // Yellow lightning bolt ring
+          ctx.rotate(p.angle);
+          ctx.shadowColor = '#ffdd44';
+          ctx.shadowBlur = 10;
+          ctx.strokeStyle = '#ffdd44';
+          ctx.lineWidth = 2;
+          ctx.beginPath();
+          ctx.arc(0, 0, POWERUP_SIZE * 0.8, 0, Math.PI * 2);
+          ctx.stroke();
+          ctx.fillStyle = '#ffee66';
+          ctx.beginPath();
+          ctx.moveTo(-3, -10);
+          ctx.lineTo(3, -3);
+          ctx.lineTo(0, -3);
+          ctx.lineTo(4, 10);
+          ctx.lineTo(-2, 2);
+          ctx.lineTo(1, 2);
+          ctx.closePath();
+          ctx.fill();
+          ctx.shadowBlur = 0;
+          break;
+        }
+        case 'obstacle': {
+          // Red warning hexagon
+          ctx.rotate(p.angle);
+          ctx.shadowColor = '#ff4444';
+          ctx.shadowBlur = 8;
+          ctx.fillStyle = '#ff4444';
+          ctx.beginPath();
+          for (let h = 0; h < 6; h++) {
+            const hAngle = (h / 6) * Math.PI * 2 - Math.PI / 6;
+            const hx = Math.cos(hAngle) * POWERUP_SIZE * 0.8;
+            const hy = Math.sin(hAngle) * POWERUP_SIZE * 0.8;
+            if (h === 0) ctx.moveTo(hx, hy);
+            else ctx.lineTo(hx, hy);
+          }
+          ctx.closePath();
+          ctx.fill();
+          ctx.fillStyle = '#ffffff';
+          ctx.font = "bold 14px 'Orbitron', 'Rajdhani', system-ui, sans-serif";
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.fillText('!', 0, 0);
+          ctx.shadowBlur = 0;
+          break;
+        }
+      }
+      ctx.globalAlpha = 1;
       ctx.restore();
     }
   }
@@ -947,59 +985,98 @@ export class FormulaGame implements IGame {
   }
 
   private renderCars(ctx: CanvasRenderingContext2D): void {
-    const carColors: [string, string] = [P1_COLOR, P2_COLOR];
     for (let ci = 0; ci < 2; ci++) {
       const car = this.cars[ci as 0 | 1];
-      const color = carColors[ci as 0 | 1];
+      const hullColor = ci === 0 ? P1_COLOR : P2_COLOR;
+      const flareColor = ci === 0 ? '#0088ff' : '#ff0044';
 
       // Flash when penalized
       if (car.penaltyTimer > 0 && Math.sin(car.flashTimer) > 0) {
         continue; // skip rendering for flash effect
       }
 
+      const isBoosted = car.turboTimer > 0 || car.speedBoostTimer > 0;
+      const trailLen = isBoosted ? 60 : 25;
+
+      // Engine trail — animated gradient line from rear
+      ctx.save();
+      const rearX = car.x - Math.cos(car.angle) * 16;
+      const rearY = car.y - Math.sin(car.angle) * 16;
+      const endX = rearX - Math.cos(car.angle) * trailLen;
+      const endY = rearY - Math.sin(car.angle) * trailLen;
+      const trailGrad = ctx.createLinearGradient(rearX, rearY, endX, endY);
+      const flicker = 0.6 + 0.4 * Math.sin(this.elapsed * 15 + ci * 3);
+      trailGrad.addColorStop(0, flareColor);
+      trailGrad.addColorStop(1, 'transparent');
+      ctx.globalAlpha = flicker;
+      ctx.strokeStyle = trailGrad;
+      ctx.lineWidth = isBoosted ? 6 : 3;
+      ctx.beginPath();
+      ctx.moveTo(rearX, rearY);
+      ctx.lineTo(endX, endY);
+      ctx.stroke();
+      ctx.globalAlpha = 1;
+      ctx.restore();
+
+      // Ship body
       ctx.save();
       ctx.translate(car.x, car.y);
       ctx.rotate(car.angle);
 
-      // Car body
-      ctx.fillStyle = color;
-      if (car.turboTimer > 0 || car.speedBoostTimer > 0) {
-        ctx.shadowColor = color;
-        ctx.shadowBlur = 12;
+      if (isBoosted) {
+        ctx.shadowColor = hullColor;
+        ctx.shadowBlur = 20;
       }
-      ctx.fillRect(-CAR_W / 2, -CAR_H / 2, CAR_W, CAR_H);
 
-      // Windshield accent
-      ctx.fillStyle = '#ffffff44';
-      ctx.fillRect(CAR_W / 2 - 6, -CAR_H / 2 + 2, 4, CAR_H - 4);
+      // Main hull — elongated diamond/arrowhead 32×14
+      ctx.beginPath();
+      ctx.moveTo(16, 0);
+      ctx.lineTo(0, -7);
+      ctx.lineTo(-16, -4);
+      ctx.lineTo(-12, 0);
+      ctx.lineTo(-16, 4);
+      ctx.lineTo(0, 7);
+      ctx.closePath();
+      ctx.fillStyle = hullColor;
+      ctx.fill();
+
+      // Wing fins — thin triangles from mid-ship
+      ctx.globalAlpha = 0.7;
+      ctx.beginPath();
+      ctx.moveTo(0, -7);
+      ctx.lineTo(-6, -12);
+      ctx.lineTo(-6, -7);
+      ctx.closePath();
+      ctx.fill();
+      ctx.beginPath();
+      ctx.moveTo(0, 7);
+      ctx.lineTo(-6, 12);
+      ctx.lineTo(-6, 7);
+      ctx.closePath();
+      ctx.fill();
+      ctx.globalAlpha = 1;
+
+      // Engines — two small rects at rear
+      ctx.fillStyle = flareColor;
+      ctx.fillRect(-18, -6, 4, 3);
+      ctx.fillRect(-18, 3, 4, 3);
+
+      // Cockpit — small circle near front
+      ctx.beginPath();
+      ctx.arc(8, 0, 2.5, 0, Math.PI * 2);
+      ctx.fillStyle = '#ffffff88';
+      ctx.fill();
 
       ctx.shadowBlur = 0;
       ctx.restore();
 
-      // Turbo speed lines
-      if (car.turboTimer > 0) {
-        ctx.globalAlpha = 0.4;
-        ctx.strokeStyle = color;
-        ctx.lineWidth = 1;
-        for (let l = 0; l < 4; l++) {
-          const spread = (l - 1.5) * 6;
-          const bx = car.x - Math.cos(car.angle) * 20 + Math.cos(car.angle + Math.PI / 2) * spread;
-          const by = car.y - Math.sin(car.angle) * 20 + Math.sin(car.angle + Math.PI / 2) * spread;
-          ctx.beginPath();
-          ctx.moveTo(bx, by);
-          ctx.lineTo(bx - Math.cos(car.angle) * 15, by - Math.sin(car.angle) * 15);
-          ctx.stroke();
-        }
-        ctx.globalAlpha = 1;
-      }
-
-      // Status text above car
+      // Status text above ship
       this.renderCarStatusText(ctx, car, ci);
     }
   }
 
   private renderCarStatusText(ctx: CanvasRenderingContext2D, car: Car, _ci: number): void {
-    ctx.font = 'bold 10px monospace';
+    ctx.font = "bold 10px 'Rajdhani', sans-serif";
     ctx.textAlign = 'center';
     const textY = car.y - 14;
 
@@ -1024,7 +1101,7 @@ export class FormulaGame implements IGame {
     const mins = Math.floor(remaining / 60);
     const secs = Math.floor(remaining % 60);
     const timeStr = `${mins}:${secs.toString().padStart(2, '0')}`;
-    ctx.font = 'bold 20px monospace';
+    ctx.font = "bold 20px 'Orbitron', sans-serif";
     ctx.textAlign = 'center';
     ctx.fillStyle = '#ffffff';
     ctx.fillText(timeStr, CX, 30);
@@ -1041,7 +1118,7 @@ export class FormulaGame implements IGame {
     const label = idx === 0 ? 'HUMAN' : 'ALIEN';
 
     ctx.textAlign = 'left';
-    ctx.font = 'bold 16px monospace';
+    ctx.font = "bold 16px 'Orbitron', sans-serif";
     ctx.fillStyle = color;
     ctx.fillText(
       `${label}  LAP ${Math.min(car.lap + 1, this.effectiveLaps)}/${this.effectiveLaps}`,
@@ -1060,13 +1137,13 @@ export class FormulaGame implements IGame {
       ctx.fillStyle = color;
       ctx.fillRect(baseX, 38, ratio * 100, 6);
     }
-    ctx.font = '9px monospace';
+    ctx.font = "9px 'Orbitron', sans-serif";
     ctx.fillStyle = '#aaaaaa';
     ctx.fillText(car.turboCooldown <= 0 ? 'TURBO READY' : 'TURBO CD', baseX, 56);
 
     // Checkpoint indicator
     ctx.fillStyle = '#666666';
-    ctx.font = '10px monospace';
+    ctx.font = "10px 'Orbitron', sans-serif";
     ctx.fillText(`CP ${car.checkpoint}/${CHECKPOINT_COUNT}`, baseX, 68);
   }
 }

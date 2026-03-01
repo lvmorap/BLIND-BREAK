@@ -1,5 +1,6 @@
 import { IGame } from '../IGame.ts';
 import { InputManager, PlayerInput } from '../../core/InputManager.ts';
+import { screenShake } from '../../core/ScreenShake.ts';
 
 // ─── Constants ───────────────────────────────────────────────────────────────
 const CANVAS_W = 1280;
@@ -35,8 +36,12 @@ const PENALTY_W = 120;
 const PENALTY_H = 220;
 
 const COLOR_BG = '#0a0a12';
-const COLOR_FIELD = '#2a7a2a';
-const COLOR_LINE = '#ffffff';
+const COLOR_FIELD = '#0d0d1a';
+const COLOR_LINE = '#00f5ff1a';
+const COLOR_GRID = '#00f5ff08';
+const COLOR_BALL_GLOW = '#00ff88';
+const COLOR_PORTAL = '#9b00ff';
+const COLOR_HAZARD = '#ff6600';
 const COLOR_P1 = '#00e5ff';
 const COLOR_P2 = '#ff4466';
 
@@ -106,6 +111,7 @@ export class SoccerGame implements IGame {
   private finished = false;
   private flashTimer = 0;
   private flashColor = '';
+  private elapsed = 0;
   private aiEnabled = false;
 
   // ── IGame lifecycle ──────────────────────────────────────────────────────
@@ -145,6 +151,7 @@ export class SoccerGame implements IGame {
     this.timer = MATCH_TIME * this.durationMult;
     this.finished = false;
     this.flashTimer = 0;
+    this.elapsed = 0;
     this.goalL = { y: FIELD_Y + FIELD_H / 2, dir: 1 };
     this.goalR = { y: FIELD_Y + FIELD_H / 2, dir: -1 };
     this.resetPositions();
@@ -166,6 +173,8 @@ export class SoccerGame implements IGame {
       this.input.update();
       return;
     }
+
+    this.elapsed += dt;
 
     const p1Input = this.input.getPlayer1();
     let p2Input = this.input.getPlayer2();
@@ -348,6 +357,7 @@ export class SoccerGame implements IGame {
         this.scoreP2++;
         this.flashColor = COLOR_P2;
         this.flashTimer = 0.4;
+        screenShake.trigger(0.3, 300);
         this.resetPositions();
         return;
       }
@@ -361,6 +371,7 @@ export class SoccerGame implements IGame {
         this.scoreP1++;
         this.flashColor = COLOR_P1;
         this.flashTimer = 0.4;
+        screenShake.trigger(0.3, 300);
         this.resetPositions();
         return;
       }
@@ -425,10 +436,35 @@ export class SoccerGame implements IGame {
   }
 
   private drawField(ctx: CanvasRenderingContext2D): void {
-    // Green surface
+    // Dark metallic floor
     ctx.fillStyle = COLOR_FIELD;
     ctx.fillRect(FIELD_X, FIELD_Y, FIELD_W, FIELD_H);
 
+    // Glowing hexagonal grid pattern
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(FIELD_X, FIELD_Y, FIELD_W, FIELD_H);
+    ctx.clip();
+    ctx.strokeStyle = COLOR_GRID;
+    ctx.lineWidth = 1;
+    const hexSize = 30;
+    const hexH = hexSize * Math.sqrt(3);
+    const hexColStep = hexSize * 1.5;
+    const maxCol = (FIELD_W + hexSize * 2) / hexColStep;
+    const maxRow = (FIELD_H + hexH) / hexH;
+    for (let col = -1; col < maxCol; col++) {
+      for (let row = -1; row < maxRow; row++) {
+        const hx = FIELD_X + col * hexSize * 1.5;
+        const hy = FIELD_Y + row * hexH + (col % 2 !== 0 ? hexH / 2 : 0);
+        this.drawHexagon(ctx, hx, hy, hexSize);
+      }
+    }
+    ctx.restore();
+
+    // Orange hazard stripes at field edges
+    this.drawHazardStripes(ctx);
+
+    // Field markings (faint cyan)
     ctx.strokeStyle = COLOR_LINE;
     ctx.lineWidth = 2;
 
@@ -460,163 +496,233 @@ export class SoccerGame implements IGame {
     ctx.strokeRect(FIELD_X + FIELD_W - PENALTY_W, penaltyTop, PENALTY_W, PENALTY_H);
   }
 
+  private drawHexagon(ctx: CanvasRenderingContext2D, cx: number, cy: number, size: number): void {
+    ctx.beginPath();
+    for (let i = 0; i < 6; i++) {
+      const angle = (Math.PI / 3) * i;
+      const hx = cx + size * Math.cos(angle);
+      const hy = cy + size * Math.sin(angle);
+      if (i === 0) ctx.moveTo(hx, hy);
+      else ctx.lineTo(hx, hy);
+    }
+    ctx.closePath();
+    ctx.stroke();
+  }
+
+  private drawHazardStripes(ctx: CanvasRenderingContext2D): void {
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(FIELD_X, FIELD_Y, FIELD_W, FIELD_H);
+    ctx.clip();
+
+    const spacing = 20;
+    const depth = 14;
+    ctx.strokeStyle = COLOR_HAZARD;
+    ctx.lineWidth = 6;
+    ctx.globalAlpha = 0.25;
+    ctx.shadowColor = COLOR_HAZARD;
+    ctx.shadowBlur = 4;
+
+    // Top edge
+    for (let x = FIELD_X - spacing; x < FIELD_X + FIELD_W + spacing; x += spacing) {
+      ctx.beginPath();
+      ctx.moveTo(x, FIELD_Y);
+      ctx.lineTo(x + depth, FIELD_Y + depth);
+      ctx.stroke();
+    }
+    // Bottom edge
+    for (let x = FIELD_X - spacing; x < FIELD_X + FIELD_W + spacing; x += spacing) {
+      ctx.beginPath();
+      ctx.moveTo(x, FIELD_Y + FIELD_H);
+      ctx.lineTo(x + depth, FIELD_Y + FIELD_H - depth);
+      ctx.stroke();
+    }
+    // Left edge
+    for (let y = FIELD_Y - spacing; y < FIELD_Y + FIELD_H + spacing; y += spacing) {
+      ctx.beginPath();
+      ctx.moveTo(FIELD_X, y);
+      ctx.lineTo(FIELD_X + depth, y + depth);
+      ctx.stroke();
+    }
+    // Right edge
+    for (let y = FIELD_Y - spacing; y < FIELD_Y + FIELD_H + spacing; y += spacing) {
+      ctx.beginPath();
+      ctx.moveTo(FIELD_X + FIELD_W, y);
+      ctx.lineTo(FIELD_X + FIELD_W - depth, y + depth);
+      ctx.stroke();
+    }
+
+    ctx.restore();
+  }
+
   private drawGoal(
     ctx: CanvasRenderingContext2D,
     side: 'left' | 'right',
     goal: Goal,
-    color: string,
+    _color: string,
   ): void {
+    ctx.save();
     const halfH = GOAL_HEIGHT / 2;
     const topY = goal.y - halfH;
     const botY = goal.y + halfH;
+    const x = side === 'left' ? FIELD_X : FIELD_X + FIELD_W;
     const netDepth = 20;
+    const netX = side === 'left' ? x - netDepth : x + netDepth;
 
-    let x: number;
-    let netX: number;
-
-    if (side === 'left') {
-      x = FIELD_X;
-      netX = FIELD_X - netDepth;
-    } else {
-      x = FIELD_X + FIELD_W;
-      netX = FIELD_X + FIELD_W;
-    }
-
-    // Net (hatched area)
-    ctx.save();
-    ctx.globalAlpha = 0.3;
-    ctx.fillStyle = color;
-    if (side === 'left') {
-      ctx.fillRect(netX, topY, netDepth, GOAL_HEIGHT);
-    } else {
-      ctx.fillRect(netX, topY, netDepth, GOAL_HEIGHT);
-    }
-
-    // Hatch lines
-    ctx.strokeStyle = color;
-    ctx.lineWidth = 1;
-    ctx.globalAlpha = 0.5;
-    const hatchSpacing = 8;
-    const nxEnd = netX + netDepth;
-    for (let hy = topY; hy <= botY; hy += hatchSpacing) {
-      ctx.beginPath();
-      ctx.moveTo(netX, hy);
-      ctx.lineTo(nxEnd, hy);
-      ctx.stroke();
-    }
-    for (let hx = netX; hx <= nxEnd; hx += hatchSpacing) {
-      ctx.beginPath();
-      ctx.moveTo(hx, topY);
-      ctx.lineTo(hx, botY);
-      ctx.stroke();
-    }
-    ctx.restore();
-
-    // Goal frame
-    ctx.strokeStyle = color;
+    // Animate opacity flicker
+    const flicker = 0.7 + 0.3 * Math.sin(this.elapsed * 3);
+    ctx.globalAlpha = flicker;
+    ctx.strokeStyle = COLOR_PORTAL;
+    ctx.shadowColor = COLOR_PORTAL;
+    ctx.shadowBlur = 12;
     ctx.lineWidth = 3;
-    if (side === 'left') {
-      ctx.beginPath();
-      ctx.moveTo(x, topY);
-      ctx.lineTo(netX, topY);
-      ctx.lineTo(netX, botY);
-      ctx.lineTo(x, botY);
-      ctx.stroke();
-    } else {
-      ctx.beginPath();
-      ctx.moveTo(x, topY);
-      ctx.lineTo(x + netDepth, topY);
-      ctx.lineTo(x + netDepth, botY);
-      ctx.lineTo(x, botY);
-      ctx.stroke();
-    }
 
-    // Posts (circles at goal line corners)
-    ctx.fillStyle = color;
+    // Vertical post at field edge
     ctx.beginPath();
-    ctx.arc(x, topY, 5, 0, Math.PI * 2);
-    ctx.fill();
+    ctx.moveTo(x, topY);
+    ctx.lineTo(x, botY);
+    ctx.stroke();
+
+    // Vertical line at net side
     ctx.beginPath();
-    ctx.arc(x, botY, 5, 0, Math.PI * 2);
-    ctx.fill();
+    ctx.moveTo(netX, topY);
+    ctx.lineTo(netX, botY);
+    ctx.stroke();
+
+    // Arc at top connecting the two verticals
+    const midX = (x + netX) / 2;
+    const arcR = netDepth / 2;
+    ctx.beginPath();
+    if (side === 'left') {
+      ctx.arc(midX, topY, arcR, Math.PI, 0);
+    } else {
+      ctx.arc(midX, topY, arcR, Math.PI, 0);
+    }
+    ctx.stroke();
+
+    ctx.restore();
   }
 
   private drawBall(ctx: CanvasRenderingContext2D): void {
     const b = this.ball;
+    ctx.save();
 
-    // Shadow
-    ctx.fillStyle = 'rgba(0,0,0,0.25)';
-    ctx.beginPath();
-    ctx.ellipse(b.x + 2, b.y + 2, BALL_RADIUS, BALL_RADIUS * 0.7, 0, 0, Math.PI * 2);
-    ctx.fill();
+    // Glow effect
+    ctx.shadowColor = COLOR_BALL_GLOW;
+    ctx.shadowBlur = 8;
 
-    // Ball body
+    // Ball body (white with slight transparency)
+    ctx.globalAlpha = 0.9;
     ctx.fillStyle = '#ffffff';
     ctx.beginPath();
     ctx.arc(b.x, b.y, BALL_RADIUS, 0, Math.PI * 2);
     ctx.fill();
 
-    // Outline
-    ctx.strokeStyle = '#cccccc';
-    ctx.lineWidth = 1;
+    // Neon green outline
+    ctx.strokeStyle = COLOR_BALL_GLOW;
+    ctx.lineWidth = 1.5;
     ctx.beginPath();
     ctx.arc(b.x, b.y, BALL_RADIUS, 0, Math.PI * 2);
     ctx.stroke();
 
-    // Spin indicator line
-    ctx.save();
+    // Procedural pentagon pattern
+    ctx.shadowBlur = 0;
     ctx.translate(b.x, b.y);
     ctx.rotate(b.spinAngle);
-    ctx.strokeStyle = '#999999';
-    ctx.lineWidth = 1.5;
-    ctx.beginPath();
-    ctx.moveTo(-BALL_RADIUS * 0.6, 0);
-    ctx.lineTo(BALL_RADIUS * 0.6, 0);
-    ctx.stroke();
+    ctx.strokeStyle = COLOR_BALL_GLOW;
+    ctx.lineWidth = 0.8;
+    ctx.globalAlpha = 0.6;
+    const pentR = BALL_RADIUS * 0.3;
+    const pentDist = BALL_RADIUS * 0.5;
+    for (let i = 0; i < 5; i++) {
+      const a = ((Math.PI * 2) / 5) * i;
+      const px = Math.cos(a) * pentDist;
+      const py = Math.sin(a) * pentDist;
+      ctx.beginPath();
+      for (let j = 0; j < 5; j++) {
+        const va = ((Math.PI * 2) / 5) * j - Math.PI / 2;
+        const vx = px + Math.cos(va) * pentR;
+        const vy = py + Math.sin(va) * pentR;
+        if (j === 0) ctx.moveTo(vx, vy);
+        else ctx.lineTo(vx, vy);
+      }
+      ctx.closePath();
+      ctx.stroke();
+    }
+
     ctx.restore();
   }
 
   private drawPlayer(ctx: CanvasRenderingContext2D, p: Player, color: string): void {
     const jumping = p.jumpTimer > 0;
     const scale = jumping ? 1.3 : 1.0;
-    const r = PLAYER_RADIUS * scale;
+    const bodyW = PLAYER_RADIUS * scale;
+    const bodyH = PLAYER_RADIUS * 2 * scale;
+    const drawY = jumping ? p.y - 8 : p.y;
 
     // Jump shadow
     if (jumping) {
+      ctx.save();
       ctx.fillStyle = 'rgba(0,0,0,0.2)';
       ctx.beginPath();
       ctx.ellipse(p.x, p.y + 6, PLAYER_RADIUS, PLAYER_RADIUS * 0.5, 0, 0, Math.PI * 2);
       ctx.fill();
+      ctx.restore();
     }
 
-    // Player circle
     ctx.save();
-    if (p.kickCooldown > 0) {
-      ctx.globalAlpha = 0.5;
-    }
-    ctx.fillStyle = color;
+    if (p.kickCooldown > 0) ctx.globalAlpha = 0.5;
+
+    // Suit body (capsule shape with gradient)
+    const cr = parseInt(color.slice(1, 3), 16);
+    const cg = parseInt(color.slice(3, 5), 16);
+    const cb = parseInt(color.slice(5, 7), 16);
+    // Halve RGB values via bit-shift to produce a darker suit shade
+    const darker = `rgb(${cr >> 1},${cg >> 1},${cb >> 1})`;
+    const grad = ctx.createLinearGradient(p.x, drawY - bodyH / 2, p.x, drawY + bodyH / 2);
+    grad.addColorStop(0, color);
+    grad.addColorStop(1, darker);
+    ctx.fillStyle = grad;
+    const rx = p.x - bodyW / 2;
+    const ry = drawY - bodyH / 2;
+    const cornerR = bodyW / 2;
     ctx.beginPath();
-    ctx.arc(p.x, jumping ? p.y - 8 : p.y, r, 0, Math.PI * 2);
+    ctx.roundRect(rx, ry, bodyW, bodyH, cornerR);
     ctx.fill();
 
-    // Border
-    ctx.strokeStyle = '#ffffff';
-    ctx.lineWidth = 2;
+    // Suit border
+    ctx.strokeStyle = 'rgba(255,255,255,0.6)';
+    ctx.lineWidth = 1.5;
     ctx.beginPath();
-    ctx.arc(p.x, jumping ? p.y - 8 : p.y, r, 0, Math.PI * 2);
+    ctx.roundRect(rx, ry, bodyW, bodyH, cornerR);
     ctx.stroke();
+
+    // Helmet (circle at top of capsule)
+    const helmetR = bodyW * 0.35;
+    const helmetY = drawY - bodyH / 2 + helmetR + 2;
+    ctx.fillStyle = color;
+    ctx.beginPath();
+    ctx.arc(p.x, helmetY, helmetR, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Visor highlight
+    ctx.fillStyle = 'rgba(255,255,255,0.7)';
+    ctx.beginPath();
+    ctx.arc(p.x + helmetR * 0.2, helmetY - helmetR * 0.15, helmetR * 0.5, 0, Math.PI * 2);
+    ctx.fill();
+
     ctx.restore();
 
     // Direction indicator
     const speed = vecLen(vec2(p.vx, p.vy));
     if (speed > 10) {
       const dir = vecNorm(vec2(p.vx, p.vy));
-      const iy = jumping ? p.y - 8 : p.y;
+      const pr = PLAYER_RADIUS * scale;
       ctx.strokeStyle = '#ffffff';
       ctx.lineWidth = 2;
       ctx.beginPath();
-      ctx.moveTo(p.x, iy);
-      ctx.lineTo(p.x + dir.x * r * 0.8, iy + dir.y * r * 0.8);
+      ctx.moveTo(p.x, drawY);
+      ctx.lineTo(p.x + dir.x * pr * 0.8, drawY + dir.y * pr * 0.8);
       ctx.stroke();
     }
   }
@@ -638,7 +744,7 @@ export class SoccerGame implements IGame {
     ctx.fillText(`${this.scoreP2}`, FIELD_X + FIELD_W - 20, hudY);
 
     // Timer (center)
-    ctx.fillStyle = COLOR_LINE;
+    ctx.fillStyle = '#ffffff';
     ctx.textAlign = 'center';
     const secs = Math.ceil(this.timer);
     const mins = Math.floor(secs / 60);
