@@ -243,6 +243,7 @@ export class BlindBreakGame implements IGame {
     bbCtx.save();
     bbCtx.scale(sx, sy);
 
+    // Clear with margin to cover screen shake offset
     bbCtx.clearRect(-50, -50, C.W + 100, C.H + 100);
 
     bbCtx.save();
