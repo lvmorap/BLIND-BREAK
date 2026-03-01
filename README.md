@@ -6,11 +6,7 @@
 
 **[▶ Play Now](https://lvmorap.github.io/NEXARI/)**
 
-<iframe width="560" height="315" src="https://www.youtube.com/embed/7rlH8M2BfO4" 
-        title="YouTube video player" frameborder="0" 
-        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
-        allowfullscreen>
-</iframe>
+[![Video Demo](https://img.youtube.com/vi/7rlH8M2BfO4/0.jpg)](https://www.youtube.com/watch?v=7rlH8M2BfO4)
 
 
 ---
