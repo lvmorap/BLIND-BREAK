@@ -42,8 +42,8 @@ const gameRegistry: GameInfo[] = [
   },
   {
     id: 'formula',
-    name: 'JUPITER RING RACE',
-    subtitle: 'Spaceship racing through the rings of Jupiter',
+    name: 'SATURN RING RACE',
+    subtitle: "Spaceship racing around Saturn's rings",
     icon: '🏎️',
     color: '#aa44ff',
     factory: () => new FormulaGame(),

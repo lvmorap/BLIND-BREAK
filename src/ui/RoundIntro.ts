@@ -50,7 +50,7 @@ const LORE_MAP: Record<string, GameLoreEntry> = {
   },
   formula: {
     description:
-      "The aliens watched motorcycle races in human cinema and wanted to replicate them with their spaceships around Jupiter's rings. The Human and Alien race through the rings leaving energy trails. Hit your opponent's trail to stun them!",
+      "The aliens watched motorcycle races in human cinema and wanted to replicate them with their spaceships around Saturn's rings. The Human and Alien race through the rings leaving energy trails. Hit your opponent's trail to stun them!",
     controls: [
       'HUMAN: W/S accelerate/brake, A/D steer, F turbo',
       'ALIEN: Arrows to steer/accelerate, RShift turbo',
