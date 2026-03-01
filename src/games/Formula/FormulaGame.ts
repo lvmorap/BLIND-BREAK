@@ -784,7 +784,7 @@ export class FormulaGame implements IGame {
           ctx.closePath();
           ctx.fill();
           ctx.fillStyle = '#ffffff';
-          ctx.font = 'bold 14px sans-serif';
+          ctx.font = "bold 14px 'Orbitron', 'Rajdhani', system-ui, sans-serif";
           ctx.textAlign = 'center';
           ctx.textBaseline = 'middle';
           ctx.fillText('!', 0, 0);

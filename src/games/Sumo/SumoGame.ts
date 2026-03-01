@@ -648,6 +648,8 @@ export class SumoGame implements IGame {
       ctx.fill();
     }
     ctx.restore();
+
+    ctx.restore();
   }
 
   private drawArena(ctx: CanvasRenderingContext2D): void {

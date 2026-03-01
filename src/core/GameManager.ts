@@ -503,10 +503,11 @@ export class GameManager {
   private static readonly HELP_DESCRIPTIONS: Record<string, string> = {
     blindbreak: 'Click + drag cue ball to aim. Release to shoot. Power = drag distance.',
     pingpong: 'Move paddle anywhere in your half. WASD for P1, IJKL for P2.',
-    soccer: 'Move player with directional keys. Space/0 to kick. Shift/Enter to jump.',
-    sumo: 'Move with directional keys. Space/0 to dash. Shift/Enter to jump.',
-    formula: 'Arrow/WASD to steer. Space/0 for turbo. Avoid trails. Complete laps.',
-    volleyball: 'WASD/IJKL to move. Space/0 to hit. Shift/Enter to jump. Gravity changes every 5s.',
+    soccer: 'Move player with directional keys. F/Right Shift to kick. G/Enter to jump.',
+    sumo: 'Move with directional keys. F/Right Shift to dash. G/Enter to jump.',
+    formula: 'Arrow/WASD to steer. F/Right Shift for turbo. Avoid trails. Complete laps.',
+    volleyball:
+      'WASD/IJKL to move. F/Right Shift to hit. G/Enter to jump. Gravity changes every 5s.',
   };
 
   private renderHelp(ctx: CanvasRenderingContext2D): void {
@@ -554,8 +555,8 @@ export class GameManager {
 
     const rows = [
       ['WASD / Arrows', 'IJKL / Numpad'],
-      ['[Space] Action 1', '[0] Action 1'],
-      ['[Shift] Action 2', '[Enter] Action 2'],
+      ['[F] Action 1', '[Right Shift] Action 1'],
+      ['[G] Action 2', '[Enter] Action 2'],
     ];
 
     ctx.fillStyle = '#e0d5c0';
