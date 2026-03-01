@@ -18,7 +18,7 @@ import {
   drawTutorial,
   drawPauseMenu,
 } from '../../rendering/screens.ts';
-import { setupInput } from '../../input/input.ts';
+import { setupInput, cleanupInput } from '../../input/input.ts';
 import { resolveTurn } from '../../core/turns.ts';
 import { aiThink } from '../../ai/ai.ts';
 import type { IGame } from '../IGame.ts';
@@ -235,8 +235,15 @@ export class BlindBreakGame implements IGame {
 
   render(_ctx: CanvasRenderingContext2D): void {
     const t = performance.now();
+    const cw = bbCtx.canvas.width;
+    const ch = bbCtx.canvas.height;
+    const sx = cw / C.W;
+    const sy = ch / C.H;
 
-    bbCtx.clearRect(0, 0, C.W, C.H);
+    bbCtx.save();
+    bbCtx.scale(sx, sy);
+
+    bbCtx.clearRect(-50, -50, C.W + 100, C.H + 100);
 
     bbCtx.save();
     bbCtx.translate(state.screenShake.ox, state.screenShake.oy);
@@ -255,7 +262,7 @@ export class BlindBreakGame implements IGame {
       if (state.chromaticTimer > 0) {
         const offset = state.chromaticTimer * 1.5;
         lctx.clearRect(0, 0, C.W, C.H);
-        lctx.drawImage(bbCtx.canvas, 0, 0);
+        lctx.drawImage(bbCtx.canvas, 0, 0, cw, ch, 0, 0, C.W, C.H);
         bbCtx.save();
         bbCtx.globalCompositeOperation = 'lighter';
         bbCtx.globalAlpha = 0.08;
@@ -276,9 +283,12 @@ export class BlindBreakGame implements IGame {
         bbCtx.fillRect(0, 0, C.W, C.H);
       }
     }
+
+    bbCtx.restore();
   }
 
   destroy(): void {
+    cleanupInput();
     resetGame();
     state.gameState = 'PRELOAD';
     if (state.ambientNode) {
